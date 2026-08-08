@@ -2,7 +2,7 @@ export type Client = {
   id: number;
   name: string;
   classification: "A" | "B" | "C";
-  subClassification?: "Wholesale_internal" | "woholesale_external";
+  subClassification?: "wholesale_internal" | "wholesale_external";
   totalScore: number;
   outstandingBalance: number;
   lastPaymentDate: string;
@@ -25,19 +25,26 @@ export type VisitInventoryItem = {
   productName: string;
   availableOnShelf: boolean;
   availableInWarehouse: boolean;
-  shelfQty: number;
-  warehouseQty: number;
 };
 
-export type Visit = {
+// بيانات يُدخلها المندوب وقت الزيارة
+export type VisitSubmission = {
   clientId: number;
   repId: number;
-  supervisorName: string;
   visitDate: string;
   visitTime: string;
+  repNotes: string;
+  inventory: VisitInventoryItem[];
+  status: "pending_review" | "reviewed";
+};
+
+// تقييم يُضيفه المشرف لاحقًا فوق نفس الزيارة
+export type SupervisorReview = {
+  visitId: number;
+  supervisorName: string;
+  promotionRating: number;
   repPerformanceRating: number;
   repCommitmentRating: number;
   paymentCommitmentRating: number;
-  notes: string;
-  inventory: VisitInventoryItem[];
+  reviewedAt: string;
 };

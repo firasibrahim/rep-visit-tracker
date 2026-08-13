@@ -69,3 +69,27 @@ export const mockPendingVisit = {
   ],
   status: "pending_review",
 };
+
+export const mockVisits = [
+  {
+    id: 1,
+    clientName: "سوبر ماركت الأندلس",
+    repName: "أحمد محمد",
+    visitDate: "2026-08-07",
+    status: "pending_review" as const,
+  },
+  {
+    id: 2,
+    clientName: "سوق طيبة",
+    repName: "خالد علي",
+    visitDate: "2026-08-06",
+    status: "reviewed" as const,
+  },
+  {
+    id: 3,
+    clientName: "سوبر ماركت الأندلس",
+    repName: "أحمد محمد",
+    visitDate: "2026-08-01",
+    status: "reviewed" as const,
+  },
+];

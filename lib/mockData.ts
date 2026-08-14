@@ -93,3 +93,20 @@ export const mockVisits = [
     status: "reviewed" as const,
   },
 ];
+
+export const mockRepsDetailed = [
+  {
+    id: 1,
+    name: "أحمد محمد",
+    visitsThisMonth: 18,
+    avgClientScore: 8.2,
+    phone: "0912345678",
+  },
+  {
+    id: 2,
+    name: "خالد علي",
+    visitsThisMonth: 14,
+    avgClientScore: 7.5,
+    phone: "0923456789",
+  },
+];

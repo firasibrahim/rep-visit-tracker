@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { notifySuccess, notifyUpdate, notifyDelete } from "@/lib/toast";
 
-// Dynamic import إلزامي هنا عشان المكتبة تشتغل بس في المتصفح، مش على السيرفر
 const LocationPicker = dynamic(
   () => import("@/components/clients/LocationPicker"),
   {
@@ -15,31 +16,93 @@ const LocationPicker = dynamic(
   },
 );
 
-export default function NewClientPage() {
+export default function NewOrEditClientPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("id"); // لو موجود، إحنا في وضع "تعديل"
+
   const [name, setName] = useState("");
   const [classification, setClassification] = useState<"A" | "B" | "C">("B");
   const [subClassification, setSubClassification] = useState("");
   const [address, setAddress] = useState("");
   const [location, setLocation] = useState({ lat: 32.8872, lng: 13.1913 });
+  const [loading, setLoading] = useState(!!editId);
 
-  const handleSubmit = () => {
-    const newClient = {
+  useEffect(() => {
+    if (!editId) return;
+
+    const loadClient = async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("client_id", editId)
+        .single();
+
+      if (data) {
+        setName(data.name);
+        setClassification(data.classification);
+        setSubClassification(data.sub_classification ?? "");
+        setAddress(data.address ?? "");
+        setLocation({
+          lat: data.latitude ?? 32.8872,
+          lng: data.longitude ?? 13.1913,
+        });
+      }
+      setLoading(false);
+    };
+
+    loadClient();
+  }, [editId]);
+
+  const handleSubmit = async () => {
+    const clientData = {
       name,
       classification,
-      subClassification: classification === "A" ? subClassification : null,
+      sub_classification:
+        classification === "A" ? subClassification || null : null,
       address,
       latitude: location.lat,
       longitude: location.lng,
     };
-    console.log("عميل جديد:", newClient);
-    alert("سيتم ربط هذا بقاعدة البيانات في الخطوة القادمة");
+
+    if (editId) {
+      const { error } = await supabase
+        .from("clients")
+        .update(clientData)
+        .eq("client_id", editId);
+
+      if (error) {
+        notifyDelete("حدث خطأ أثناء التعديل");
+        return;
+      }
+      notifyUpdate("تم تعديل بيانات العميل بنجاح");
+    } else {
+      const { error } = await supabase.from("clients").insert(clientData);
+
+      if (error) {
+        notifyDelete("حدث خطأ أثناء الإضافة");
+        return;
+      }
+      notifySuccess("تمت إضافة العميل بنجاح");
+    }
+
+    router.push("/clients");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        جاري التحميل...
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 p-6" dir="rtl">
       <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="text-2xl font-bold text-slate-800">إضافة عميل جديد</h1>
+        <h1 className="text-2xl font-bold text-slate-800">
+          {editId ? "تعديل بيانات العميل" : "إضافة عميل جديد"}
+        </h1>
 
         <div className="bg-white rounded-xl shadow-sm p-5 space-y-4">
           <Field label="اسم العميل (المحل)">
@@ -98,7 +161,10 @@ export default function NewClientPage() {
           <p className="text-xs text-slate-400 mb-3">
             اضغط على الخريطة لتحديد موقع المحل بدقة
           </p>
-          <LocationPicker onLocationChange={setLocation} />
+          <LocationPicker
+            initialPosition={location}
+            onLocationChange={setLocation}
+          />
           <p className="text-xs text-slate-400 mt-2">
             الإحداثيات: {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
           </p>
@@ -115,7 +181,7 @@ export default function NewClientPage() {
             onClick={handleSubmit}
             className="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
           >
-            حفظ العميل
+            {editId ? "حفظ التعديلات" : "حفظ العميل"}
           </button>
         </div>
       </div>

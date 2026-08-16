@@ -10,6 +10,7 @@ import {
   Users,
   BarChart3,
   Settings,
+  Package,
 } from "lucide-react";
 
 const menuItems = [
@@ -18,6 +19,7 @@ const menuItems = [
   { label: "قائمة الزيارات", href: "/visits", icon: ClipboardList },
   { label: "العملاء", href: "/clients", icon: Store },
   { label: "المندوبين", href: "/reps", icon: Users },
+  { label: "الأصناف", href: "/products", icon: Package },
   { label: "التقارير", href: "/reports", icon: BarChart3 },
 ];
 

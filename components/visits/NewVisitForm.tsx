@@ -1,20 +1,30 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 import InventorySelector from "@/components/visits/InventorySelector";
+import ConfirmModal from "@/components/ui/ConfirmModal";
+import { notifySuccess, notifyDelete } from "@/lib/toast";
+
+type Product = { product_id: number; name: string; category: string };
+type Client = { client_id: number; name: string };
 
 export default function NewVisitForm({
   initialClients,
   initialProducts,
 }: {
-  initialClients: any[];
-  initialProducts: any[];
+  initialClients: Client[];
+  initialProducts: Product[];
 }) {
+  const router = useRouter();
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [repNotes, setRepNotes] = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [inventory, setInventory] = useState(
     initialProducts.map((p) => ({
-      productId: p.id,
+      productId: p.product_id,
       productName: p.name,
       category: p.category,
       availableOnShelf: false,
@@ -35,17 +45,69 @@ export default function NewVisitForm({
     );
   };
 
-  const handleSubmit = () => {
-    const submission = {
-      clientId: selectedClientId,
-      repId: 1,
-      visitDate: new Date().toISOString().split("T")[0],
-      repNotes,
-      inventory,
-      status: "pending_review",
-    };
-    console.log("بيانات الزيارة المُرسلة:", submission);
-    alert("تم إرسال الزيارة بنجاح، بانتظار مراجعة المشرف");
+  const selectedClient = initialClients.find(
+    (c) => c.client_id === selectedClientId,
+  );
+  const selectedItemsCount = inventory.filter(
+    (i) => i.availableOnShelf || i.availableInWarehouse,
+  ).length;
+
+  // التحقق قبل فتح نافذة التأكيد
+  const handlePreSubmit = () => {
+    if (!selectedClientId) {
+      notifyDelete("الرجاء اختيار العميل أولاً");
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  // الإرسال الفعلي بعد التأكيد
+  const handleConfirmedSubmit = async () => {
+    setSubmitting(true);
+
+    // 1. إنشاء الزيارة نفسها
+    const { data: visitData, error: visitError } = await supabase
+      .from("visits")
+      .insert({
+        client_id: selectedClientId,
+        rep_id: 1, // مؤقت، لحد ما نبني تسجيل الدخول
+        rep_notes: repNotes,
+        status: "pending_review",
+      })
+      .select()
+      .single();
+
+    if (visitError || !visitData) {
+      notifyDelete("حدث خطأ أثناء إرسال الزيارة");
+      setSubmitting(false);
+      return;
+    }
+
+    // 2. إضافة الأصناف المُحددة بس (توفيرًا للبيانات، مفيش داعي نضيف صنف مفيش فيه حركة)
+    const selectedInventory = inventory
+      .filter((i) => i.availableOnShelf || i.availableInWarehouse)
+      .map((i) => ({
+        visit_id: visitData.visit_id,
+        product_id: i.productId,
+        available_on_shelf: i.availableOnShelf,
+        available_in_warehouse: i.availableInWarehouse,
+      }));
+
+    if (selectedInventory.length > 0) {
+      const { error: inventoryError } = await supabase
+        .from("visit_inventory")
+        .insert(selectedInventory);
+
+      if (inventoryError) {
+        notifyDelete("تم إرسال الزيارة، لكن حدث خطأ في حفظ الأصناف");
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    notifySuccess("تم إرسال الزيارة بنجاح، بانتظار مراجعة المشرف");
+    setSubmitting(false);
+    router.push("/visits");
   };
 
   return (
@@ -70,7 +132,7 @@ export default function NewVisitForm({
               >
                 <option value="">اختر عميل</option>
                 {initialClients.map((c) => (
-                  <option key={c.id} value={c.id}>
+                  <option key={c.client_id} value={c.client_id}>
                     {c.name}
                   </option>
                 ))}
@@ -101,13 +163,23 @@ export default function NewVisitForm({
             حفظ كمسودة
           </button>
           <button
-            onClick={handleSubmit}
+            onClick={handlePreSubmit}
             className="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
           >
             إرسال الزيارة للمشرف
           </button>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={handleConfirmedSubmit}
+        title="تأكيد إرسال الزيارة"
+        message={`سيتم إرسال زيارة "${selectedClient?.name}" مع ${selectedItemsCount} صنف محدد. تأكد من مراجعة البيانات قبل الإرسال — لن تتمكن من التعديل بعد الإرسال.`}
+        confirmLabel={submitting ? "جاري الإرسال..." : "تأكيد الإرسال"}
+        variant="warning"
+      />
     </div>
   );
 }

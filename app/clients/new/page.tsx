@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -16,10 +16,26 @@ const LocationPicker = dynamic(
   },
 );
 
-export default function NewOrEditClientPage() {
+// هذا هو الـ export الرئيسي دلوقتي — Wrapper بسيط يلف الكومبوننت بـ Suspense
+export default function NewOrEditClientPageWrapper() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          جاري التحميل...
+        </div>
+      }
+    >
+      <NewOrEditClientPage />
+    </Suspense>
+  );
+}
+
+// نفس الكومبوننت القديم، بس بدون export default
+function NewOrEditClientPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const editId = searchParams.get("id"); // لو موجود، إحنا في وضع "تعديل"
+  const editId = searchParams.get("id");
 
   const [name, setName] = useState("");
   const [classification, setClassification] = useState<"A" | "B" | "C">("B");

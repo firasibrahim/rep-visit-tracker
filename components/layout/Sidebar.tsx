@@ -32,15 +32,14 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* زرار فتح القائمة - يظهر بس على الموبايل */}
+      {/* زرار عائم ثابت دايمًا في نفس المكان، حتى لو المستخدم نزل تحت في الصفحة */}
       <button
         onClick={() => setIsMobileOpen(true)}
-        className="md:hidden fixed top-3 left-3 z-40 bg-white p-2 rounded-lg shadow-md"
+        className="md:hidden fixed top-3 right-3 z-40 bg-white p-2 rounded-lg shadow-md border border-slate-200"
       >
         <Menu size={20} />
       </button>
 
-      {/* خلفية معتمة عند فتح القائمة على الموبايل */}
       {isMobileOpen && (
         <div
           className="md:hidden fixed inset-0 bg-black/40 z-40"
@@ -48,7 +47,6 @@ export default function Sidebar() {
         />
       )}
 
-      {/* القائمة نفسها */}
       <aside
         className={`
           fixed md:static top-0 right-0 h-full md:h-auto md:min-h-screen w-64

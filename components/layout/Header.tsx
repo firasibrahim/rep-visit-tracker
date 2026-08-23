@@ -1,6 +1,19 @@
 import { Bell } from "lucide-react";
 
-export default function Header() {
+const roleLabels: Record<string, string> = {
+  supervisor: "مشرف",
+  rep: "مندوب",
+};
+
+export default function Header({
+  userName,
+  userRole,
+}: {
+  userName: string;
+  userRole: "supervisor" | "rep";
+}) {
+  const initials = userName.slice(0, 2);
+
   return (
     <header className="bg-white border-b border-slate-100 px-4 md:px-6 py-3 flex items-center justify-end">
       <div className="flex items-center gap-4">
@@ -12,11 +25,11 @@ export default function Header() {
         </button>
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 text-sm font-bold">
-            وإ
+            {initials}
           </div>
           <div className="text-right hidden sm:block">
-            <div className="text-sm font-bold text-slate-700">وصال إبراهيم</div>
-            <div className="text-xs text-slate-400">مشرف</div>
+            <div className="text-sm font-bold text-slate-700">{userName}</div>
+            <div className="text-xs text-slate-400">{roleLabels[userRole]}</div>
           </div>
         </div>
       </div>

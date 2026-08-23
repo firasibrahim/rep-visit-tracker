@@ -13,9 +13,11 @@ type Client = { client_id: number; name: string };
 export default function NewVisitForm({
   initialClients,
   initialProducts,
+  currentRepId,
 }: {
   initialClients: Client[];
   initialProducts: Product[];
+  currentRepId: number;
 }) {
   const router = useRouter();
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
@@ -70,7 +72,7 @@ export default function NewVisitForm({
       .from("visits")
       .insert({
         client_id: selectedClientId,
-        rep_id: 1, // مؤقت، لحد ما نبني تسجيل الدخول
+        rep_id: currentRepId,
         rep_notes: repNotes,
         status: "pending_review",
       })

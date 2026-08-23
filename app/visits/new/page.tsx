@@ -1,7 +1,15 @@
 import { supabase } from "@/lib/supabase";
 import NewVisitForm from "@/components/visits/NewVisitForm";
+import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
 export default async function NewVisitPage() {
+  const user = await getCurrentUser();
+
+  if (!user || !user.linked_rep_id) {
+    redirect("/");
+  }
+
   const { data: clients } = await supabase
     .from("clients")
     .select("*")
@@ -16,6 +24,7 @@ export default async function NewVisitPage() {
     <NewVisitForm
       initialClients={clients ?? []}
       initialProducts={products ?? []}
+      currentRepId={user.linked_rep_id}
     />
   );
 }

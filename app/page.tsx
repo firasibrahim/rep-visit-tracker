@@ -6,14 +6,52 @@ import {
   AlertCircle,
   TrendingUp,
 } from "lucide-react";
-import { mockClients, mockVisits, mockRepsDetailed } from "@/lib/mockData";
+import { supabase } from "@/lib/supabase";
 
-export default function DashboardPage() {
-  const pendingVisits = mockVisits.filter((v) => v.status === "pending_review");
+export const dynamic = "force-dynamic";
+
+export default async function DashboardPage() {
+  const { data: clients } = await supabase
+    .from("clients")
+    .select("total_score, outstanding_balance")
+    .eq("is_active", true);
+
+  const { data: recentVisits } = await supabase
+    .from("visits")
+    .select(
+      `
+      visit_id,
+      visit_date,
+      status,
+      clients:client_id (name),
+      reps:rep_id (name)
+    `,
+    )
+    .order("visit_date", { ascending: false })
+    .limit(5);
+
+  const { count: repsCount } = await supabase
+    .from("reps")
+    .select("*", { count: "exact", head: true })
+    .eq("is_active", true);
+
+  const { count: totalVisitsCount } = await supabase
+    .from("visits")
+    .select("*", { count: "exact", head: true });
+
+  const { count: pendingCount } = await supabase
+    .from("visits")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "pending_review");
+
+  const clientsList = clients ?? [];
   const avgClientScore =
-    mockClients.reduce((sum, c) => sum + c.totalScore, 0) / mockClients.length;
-  const totalOutstanding = mockClients.reduce(
-    (sum, c) => sum + c.outstandingBalance,
+    clientsList.length > 0
+      ? clientsList.reduce((sum, c) => sum + (c.total_score ?? 0), 0) /
+        clientsList.length
+      : 0;
+  const totalOutstanding = clientsList.reduce(
+    (sum, c) => sum + (c.outstanding_balance ?? 0),
     0,
   );
 
@@ -27,24 +65,23 @@ export default function DashboardPage() {
           </p>
         </div>
 
-        {/* بطاقات إحصائية */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <StatCard
             icon={Store}
-            label="عدد العملاء"
-            value={mockClients.length}
+            label="عدد العملاء النشطين"
+            value={clientsList.length}
             color="emerald"
           />
           <StatCard
             icon={ClipboardList}
             label="إجمالي الزيارات"
-            value={mockVisits.length}
+            value={totalVisitsCount ?? 0}
             color="blue"
           />
           <StatCard
             icon={Users}
             label="عدد المندوبين"
-            value={mockRepsDetailed.length}
+            value={repsCount ?? 0}
             color="amber"
           />
           <StatCard
@@ -55,14 +92,13 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* تنبيه الزيارات المعلّقة */}
-        {pendingVisits.length > 0 && (
+        {(pendingCount ?? 0) > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <AlertCircle size={20} className="text-amber-600" />
               <span className="text-sm text-amber-800">
-                لديك <span className="font-bold">{pendingVisits.length}</span>{" "}
-                زيارة بانتظار المراجعة
+                لديك <span className="font-bold">{pendingCount}</span> زيارة
+                بانتظار المراجعة
               </span>
             </div>
             <Link
@@ -74,19 +110,17 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* الرصيد المستحق الإجمالي */}
         <div className="bg-white rounded-xl shadow-sm p-5">
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-500">
               إجمالي الأرصدة المستحقة على جميع العملاء
             </span>
             <span className="text-xl font-bold text-red-500">
-              {totalOutstanding} د.ل
+              {totalOutstanding.toFixed(2)} د.ل
             </span>
           </div>
         </div>
 
-        {/* آخر الزيارات */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b flex items-center justify-between">
             <h2 className="font-bold text-slate-700">آخر الزيارات</h2>
@@ -99,30 +133,46 @@ export default function DashboardPage() {
           </div>
           <table className="w-full text-sm text-right">
             <tbody>
-              {mockVisits.slice(0, 5).map((visit) => (
-                <tr key={visit.id} className="border-b last:border-0">
-                  <td className="py-3 px-5 font-medium text-slate-700">
-                    {visit.clientName}
-                  </td>
-                  <td className="py-3 px-5 text-slate-500">{visit.repName}</td>
-                  <td className="py-3 px-5 text-slate-400">
-                    {visit.visitDate}
-                  </td>
-                  <td className="py-3 px-5">
-                    <span
-                      className={`text-xs px-2 py-0.5 rounded-full ${
-                        visit.status === "reviewed"
-                          ? "bg-emerald-100 text-emerald-700"
-                          : "bg-amber-100 text-amber-700"
-                      }`}
-                    >
-                      {visit.status === "reviewed"
-                        ? "تمت المراجعة"
-                        : "بانتظار المراجعة"}
-                    </span>
+              {(recentVisits ?? []).map((visit) => {
+                const clientName =
+                  (visit.clients as unknown as { name: string } | null)?.name ??
+                  "—";
+                const repName =
+                  (visit.reps as unknown as { name: string } | null)?.name ??
+                  "—";
+                return (
+                  <tr key={visit.visit_id} className="border-b last:border-0">
+                    <td className="py-3 px-5 font-medium text-slate-700">
+                      {clientName}
+                    </td>
+                    <td className="py-3 px-5 text-slate-500">{repName}</td>
+                    <td className="py-3 px-5 text-slate-400">
+                      {visit.visit_date}
+                    </td>
+                    <td className="py-3 px-5">
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded-full ${
+                          visit.status === "reviewed"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {visit.status === "reviewed"
+                          ? "تمت المراجعة"
+                          : "بانتظار المراجعة"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+
+              {(recentVisits ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={4} className="text-center py-8 text-slate-400">
+                    لا توجد زيارات بعد
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>

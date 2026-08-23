@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   Home,
   ClipboardEdit,
@@ -14,25 +14,66 @@ import {
   Package,
   Menu,
   X,
+  LogOut,
 } from "lucide-react";
+import { useState } from "react";
 
-const menuItems = [
-  { label: "الرئيسية", href: "/", icon: Home },
-  { label: "تسجيل زيارة", href: "/visits/new", icon: ClipboardEdit },
-  { label: "قائمة الزيارات", href: "/visits", icon: ClipboardList },
-  { label: "العملاء", href: "/clients", icon: Store },
-  { label: "المندوبين", href: "/reps", icon: Users },
-  { label: "الأصناف", href: "/products", icon: Package },
-  { label: "التقارير", href: "/reports", icon: BarChart3 },
+type MenuItem = {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  roles: ("supervisor" | "rep")[];
+};
+
+const menuItems: MenuItem[] = [
+  { label: "الرئيسية", href: "/", icon: Home, roles: ["supervisor", "rep"] },
+  {
+    label: "تسجيل زيارة",
+    href: "/visits/new",
+    icon: ClipboardEdit,
+    roles: ["rep"],
+  },
+  {
+    label: "قائمة الزيارات",
+    href: "/visits",
+    icon: ClipboardList,
+    roles: ["supervisor", "rep"],
+  },
+  { label: "العملاء", href: "/clients", icon: Store, roles: ["supervisor"] },
+  { label: "المندوبين", href: "/reps", icon: Users, roles: ["supervisor"] },
+  { label: "الأصناف", href: "/products", icon: Package, roles: ["supervisor"] },
+  {
+    label: "التقارير",
+    href: "/reports",
+    icon: BarChart3,
+    roles: ["supervisor"],
+  },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({
+  userRole,
+  userName,
+}: {
+  userRole: "supervisor" | "rep";
+  userName: string;
+}) {
   const pathname = usePathname();
+  const router = useRouter();
+  const supabase = createClient();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const visibleItems = menuItems.filter((item) =>
+    item.roles.includes(userRole),
+  );
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  };
 
   return (
     <>
-      {/* زرار عائم ثابت دايمًا في نفس المكان، حتى لو المستخدم نزل تحت في الصفحة */}
       <button
         onClick={() => setIsMobileOpen(true)}
         className="md:hidden fixed top-3 right-3 z-40 bg-white p-2 rounded-lg shadow-md border border-slate-200"
@@ -76,7 +117,7 @@ export default function Sidebar() {
         </div>
 
         <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-          {menuItems.map((item) => {
+          {visibleItems.map((item) => {
             const isActive = pathname === item.href;
             const Icon = item.icon;
             return (
@@ -97,7 +138,7 @@ export default function Sidebar() {
           })}
         </nav>
 
-        <div className="p-3 border-t border-slate-100">
+        <div className="p-3 border-t border-slate-100 space-y-1">
           <Link
             href="/settings"
             className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-slate-500 hover:bg-slate-50"
@@ -105,6 +146,13 @@ export default function Sidebar() {
             <Settings size={18} />
             <span>الإعدادات</span>
           </Link>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-500 hover:bg-red-50 w-full"
+          >
+            <LogOut size={18} />
+            <span>تسجيل الخروج</span>
+          </button>
         </div>
       </aside>
     </>

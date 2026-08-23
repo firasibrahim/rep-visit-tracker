@@ -16,7 +16,6 @@ const LocationPicker = dynamic(
   },
 );
 
-// هذا هو الـ export الرئيسي دلوقتي — Wrapper بسيط يلف الكومبوننت بـ Suspense
 export default function NewOrEditClientPageWrapper() {
   return (
     <Suspense
@@ -31,7 +30,6 @@ export default function NewOrEditClientPageWrapper() {
   );
 }
 
-// نفس الكومبوننت القديم، بس بدون export default
 function NewOrEditClientPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,6 +40,8 @@ function NewOrEditClientPage() {
   const [subClassification, setSubClassification] = useState("");
   const [address, setAddress] = useState("");
   const [location, setLocation] = useState({ lat: 32.8872, lng: 13.1913 });
+  const [outstandingBalance, setOutstandingBalance] = useState(0);
+  const [lastPaymentDate, setLastPaymentDate] = useState("");
   const [loading, setLoading] = useState(!!editId);
 
   useEffect(() => {
@@ -63,6 +63,8 @@ function NewOrEditClientPage() {
           lat: data.latitude ?? 32.8872,
           lng: data.longitude ?? 13.1913,
         });
+        setOutstandingBalance(data.outstanding_balance ?? 0);
+        setLastPaymentDate(data.last_payment_date ?? "");
       }
       setLoading(false);
     };
@@ -79,6 +81,8 @@ function NewOrEditClientPage() {
       address,
       latitude: location.lat,
       longitude: location.lng,
+      outstanding_balance: outstandingBalance,
+      last_payment_date: lastPaymentDate || null,
     };
 
     if (editId) {
@@ -170,6 +174,30 @@ function NewOrEditClientPage() {
           </Field>
         </div>
 
+        <Card title="البيانات المالية">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Field label="الرصيد المستحق (د.ل)">
+              <input
+                type="number"
+                step="0.01"
+                className="input"
+                value={outstandingBalance}
+                onChange={(e) => setOutstandingBalance(Number(e.target.value))}
+                placeholder="0.00"
+              />
+            </Field>
+
+            <Field label="تاريخ آخر دفعة">
+              <input
+                type="date"
+                className="input"
+                value={lastPaymentDate}
+                onChange={(e) => setLastPaymentDate(e.target.value)}
+              />
+            </Field>
+          </div>
+        </Card>
+
         <div className="bg-white rounded-xl shadow-sm p-5">
           <h2 className="text-base font-bold text-slate-700 mb-3">
             تحديد الموقع على الخريطة
@@ -201,6 +229,23 @@ function NewOrEditClientPage() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Card({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-5">
+      <h2 className="text-base font-bold text-slate-700 mb-4 border-b pb-2">
+        {title}
+      </h2>
+      {children}
     </div>
   );
 }

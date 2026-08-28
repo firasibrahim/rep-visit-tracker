@@ -140,11 +140,11 @@ export default function Sidebar({
 
         <div className="p-3 border-t border-slate-100 space-y-1">
           <Link
-            href="/settings"
+            href="/settings/users"
             className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-slate-500 hover:bg-slate-50"
           >
             <Settings size={18} />
-            <span>الإعدادات</span>
+            <span>المستخدمين</span>
           </Link>
           <button
             onClick={handleLogout}

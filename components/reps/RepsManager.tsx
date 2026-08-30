@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pencil, Pause, Play, Search } from "lucide-react";
+import { Pencil, Pause, Play, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -17,6 +17,7 @@ type Rep = {
 export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
   const [reps, setReps] = useState<Rep[]>(initialReps);
   const [searchTerm, setSearchTerm] = useState("");
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRep, setEditingRep] = useState<Rep | null>(null);
   const [togglingRep, setTogglingRep] = useState<Rep | null>(null);
@@ -31,13 +32,6 @@ export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
 
   const filtered = reps.filter((r) => r.name.includes(searchTerm));
 
-  const openAddModal = () => {
-    setEditingRep(null);
-    setFormName("");
-    setFormPhone("");
-    setIsModalOpen(true);
-  };
-
   const openEditModal = (rep: Rep) => {
     setEditingRep(rep);
     setFormName(rep.name);
@@ -46,22 +40,15 @@ export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
   };
 
   const handleSave = async () => {
-    if (editingRep) {
-      const { error } = await supabase
-        .from("reps")
-        .update({ name: formName, phone: formPhone })
-        .eq("rep_id", editingRep.rep_id);
+    if (!editingRep) return;
 
-      if (error) return;
-      notifyUpdate("تم تعديل بيانات المندوب بنجاح");
-    } else {
-      const { error } = await supabase
-        .from("reps")
-        .insert({ name: formName, phone: formPhone });
+    const { error } = await supabase
+      .from("reps")
+      .update({ name: formName, phone: formPhone })
+      .eq("rep_id", editingRep.rep_id);
 
-      if (error) return;
-      notifySuccess("تمت إضافة المندوب بنجاح");
-    }
+    if (error) return;
+    notifyUpdate("تم تعديل بيانات المندوب بنجاح");
 
     setIsModalOpen(false);
     refreshReps();
@@ -91,13 +78,15 @@ export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-800">المندوبين</h1>
-          <button
-            onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
-          >
-            <Plus size={16} />
-            إضافة مندوب
-          </button>
+          <p className="text-sm text-slate-400">
+            لإضافة مندوب جديد، استخدم صفحة{" "}
+            <a
+              href="/settings/users"
+              className="text-emerald-600 hover:underline font-bold"
+            >
+              إدارة المستخدمين
+            </a>
+          </p>
         </div>
 
         <div className="relative max-w-sm">
@@ -189,7 +178,7 @@ export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={editingRep ? "تعديل مندوب" : "إضافة مندوب جديد"}
+        title="تعديل بيانات المندوب"
       >
         <div className="space-y-3">
           <div>
@@ -216,7 +205,7 @@ export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
             onClick={handleSave}
             className="w-full mt-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
           >
-            {editingRep ? "حفظ التعديلات" : "إضافة المندوب"}
+            حفظ التعديلات
           </button>
         </div>
       </Modal>

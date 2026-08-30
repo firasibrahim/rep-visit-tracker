@@ -1,10 +1,15 @@
 "use client";
 
-import { useState } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import { useEffect, useRef } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  useMapEvents,
+  useMap,
+} from "react-leaflet";
 import L from "leaflet";
 
-// إصلاح مشكلة شائعة في Leaflet مع Next.js (أيقونة الـ Marker ما بتظهرش افتراضيًا)
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })
   ._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -13,6 +18,17 @@ L.Icon.Default.mergeOptions({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
+
+// كومبوننت صغير بيصلح مشكلة الحجم بعد التحميل
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+  }, [map]);
+  return null;
+}
 
 type LatLng = { lat: number; lng: number };
 
@@ -23,33 +39,29 @@ export default function LocationPicker({
   initialPosition?: LatLng;
   onLocationChange: (pos: LatLng) => void;
 }) {
-  // الإحداثيات الافتراضية: طرابلس، ليبيا
   const defaultPosition: LatLng = initialPosition ?? {
     lat: 32.8872,
     lng: 13.1913,
   };
-  const [position, setPosition] = useState<LatLng>(defaultPosition);
 
   return (
     <div
       className="rounded-lg overflow-hidden border border-slate-200"
-      style={{ height: "300px" }}
+      style={{ height: "300px", width: "100%" }}
     >
       <MapContainer
-        center={[position.lat, position.lng]}
+        center={[defaultPosition.lat, defaultPosition.lng]}
         zoom={13}
         style={{ height: "100%", width: "100%" }}
       >
+        <MapResizer />
         <TileLayer
           attribution="&copy; OpenStreetMap contributors"
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <LocationMarker
-          position={position}
-          onChange={(pos) => {
-            setPosition(pos);
-            onLocationChange(pos);
-          }}
+          position={defaultPosition}
+          onChange={onLocationChange}
         />
       </MapContainer>
     </div>

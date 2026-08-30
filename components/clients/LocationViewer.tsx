@@ -1,6 +1,7 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 
 delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })
@@ -12,6 +13,17 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
+// كومبوننت صغير بيصلح مشكلة الحجم بعد التحميل
+function MapResizer() {
+  const map = useMap();
+  useEffect(() => {
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+  }, [map]);
+  return null;
+}
+
 export default function LocationViewer({
   lat,
   lng,
@@ -22,7 +34,7 @@ export default function LocationViewer({
   return (
     <div
       className="rounded-lg overflow-hidden border border-slate-200"
-      style={{ height: "250px" }}
+      style={{ height: "250px", width: "100%" }}
     >
       <MapContainer
         center={[lat, lng]}
@@ -31,6 +43,7 @@ export default function LocationViewer({
         dragging={true}
         scrollWheelZoom={false}
       >
+        <MapResizer />
         <TileLayer
           attribution="&copy; OpenStreetMap contributors"
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

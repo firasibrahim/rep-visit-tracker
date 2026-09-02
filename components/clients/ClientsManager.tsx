@@ -133,20 +133,22 @@ export default function ClientsManager({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6" dir="rtl">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-6" dir="rtl">
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-800">العملاء</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-400">
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">
+            العملاء
+          </h1>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-400 hidden sm:inline">
               {filteredAndSorted.length} عميل مسجّل
             </span>
             <Link
               href="/clients/new"
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+              className="flex items-center gap-2 px-3 md:px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
             >
               <Plus size={16} />
-              إضافة عميل
+              <span className="hidden sm:inline">إضافة عميل</span>
             </Link>
           </div>
         </div>
@@ -165,7 +167,89 @@ export default function ClientsManager({
           />
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        {/* عرض Cards على الموبايل */}
+        <div className="md:hidden space-y-3">
+          {paginatedClients.map((client) => (
+            <div
+              key={client.client_id}
+              className={`bg-white rounded-xl shadow-sm p-4 ${!client.is_active ? "opacity-50" : ""}`}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <button
+                  onClick={() => setViewingLocation(client)}
+                  className="font-bold text-slate-700 flex items-center gap-1.5"
+                >
+                  <MapPin size={14} className="text-slate-300" />
+                  {client.name}
+                </button>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full ${classificationColors[client.classification]}`}
+                >
+                  {classificationLabels[client.classification]}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-sm mb-2">
+                <span className="text-slate-500">التقييم</span>
+                <span className="font-bold text-emerald-600">
+                  {client.total_score} / 10
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-sm mb-3">
+                <span className="text-slate-500">الرصيد المستحق</span>
+                <span
+                  className={`font-bold ${client.outstanding_balance > 0 ? "text-red-500" : "text-emerald-600"}`}
+                >
+                  {client.outstanding_balance} د.ل
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between pt-3 border-t">
+                <span className="text-xs">
+                  {client.is_active ? (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                      نشط
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-500">
+                      موقّف
+                    </span>
+                  )}
+                </span>
+                <div className="flex gap-3">
+                  <Link
+                    href={`/clients/new?id=${client.client_id}`}
+                    className="text-slate-400"
+                  >
+                    <Pencil size={16} />
+                  </Link>
+                  <button
+                    onClick={() => setTogglingClient(client)}
+                    className={
+                      client.is_active ? "text-slate-400" : "text-emerald-600"
+                    }
+                  >
+                    {client.is_active ? (
+                      <Pause size={16} />
+                    ) : (
+                      <Play size={16} />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {paginatedClients.length === 0 && (
+            <div className="text-center py-12 text-slate-400 bg-white rounded-xl">
+              لا يوجد عملاء مطابقين للبحث
+            </div>
+          )}
+        </div>
+
+        {/* عرض Table على الديسكتوب */}
+        <div className="hidden md:block bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="w-full text-sm text-right">
             <thead>
               <tr className="border-b bg-slate-50 text-slate-500">
@@ -299,6 +383,33 @@ export default function ClientsManager({
             </div>
           )}
         </div>
+
+        {/* Pagination على الموبايل (منفصل بما إن الجدول مخفي) */}
+        {totalPages > 1 && (
+          <div className="md:hidden flex items-center justify-between px-2">
+            <span className="text-xs text-slate-400">
+              صفحة {currentPage} من {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 bg-white"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 bg-white"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <ConfirmModal

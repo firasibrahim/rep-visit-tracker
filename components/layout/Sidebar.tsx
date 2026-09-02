@@ -17,6 +17,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useState } from "react";
+import Image from "next/image";
 
 type MenuItem = {
   label: string;
@@ -98,8 +99,13 @@ export default function Sidebar({
       >
         <div className="p-5 flex items-center justify-between gap-2 border-b border-slate-100">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-lg bg-emerald-600 flex items-center justify-center">
-              <Store size={18} className="text-white" />
+            <div className="w-14 h-14 relative">
+              <Image
+                src="/logo.png"
+                alt="شركة ريحان"
+                fill
+                className="object-contain"
+              />
             </div>
             <div>
               <div className="text-sm font-bold text-slate-800">

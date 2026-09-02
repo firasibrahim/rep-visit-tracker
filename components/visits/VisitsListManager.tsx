@@ -52,10 +52,12 @@ export default function VisitsListManager({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6" dir="rtl">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-6" dir="rtl">
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-slate-800">قائمة الزيارات</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">
+            قائمة الزيارات
+          </h1>
           <span className="text-sm text-slate-400">
             {filtered.length} زيارة
           </span>
@@ -75,7 +77,51 @@ export default function VisitsListManager({
           />
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        {/* عرض Cards على الموبايل (يختفي من md وفوق) */}
+        <div className="md:hidden space-y-3">
+          {paginated.map((visit) => (
+            <div
+              key={visit.visit_id}
+              className="bg-white rounded-xl shadow-sm p-4"
+            >
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <div className="font-bold text-slate-700">
+                    {visit.clients?.name ?? "—"}
+                  </div>
+                  <div className="text-sm text-slate-500">
+                    {visit.reps?.name ?? "—"}
+                  </div>
+                </div>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${statusColors[visit.status]}`}
+                >
+                  {statusLabels[visit.status]}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs text-slate-400 mt-3 pt-3 border-t">
+                <span>{visit.visit_date}</span>
+                {visit.status === "pending_review" && (
+                  <Link
+                    href={`/visits/review/${visit.visit_id}`}
+                    className="text-emerald-600 font-bold"
+                  >
+                    مراجعة الآن ←
+                  </Link>
+                )}
+              </div>
+            </div>
+          ))}
+
+          {paginated.length === 0 && (
+            <div className="text-center py-12 text-slate-400 bg-white rounded-xl">
+              لا توجد زيارات مطابقة للبحث
+            </div>
+          )}
+        </div>
+
+        {/* عرض Table على الديسكتوب (يظهر بس من md وفوق) */}
+        <div className="hidden md:block bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="w-full text-sm text-right">
             <thead>
               <tr className="border-b bg-slate-50 text-slate-500">
@@ -130,33 +176,33 @@ export default function VisitsListManager({
               )}
             </tbody>
           </table>
-
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t bg-slate-50">
-              <span className="text-xs text-slate-400">
-                صفحة {currentPage} من {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 hover:bg-white"
-                >
-                  <ChevronRight size={16} />
-                </button>
-                <button
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
-                  disabled={currentPage === totalPages}
-                  className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 hover:bg-white"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-              </div>
-            </div>
-          )}
         </div>
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-2">
+            <span className="text-xs text-slate-400">
+              صفحة {currentPage} من {totalPages}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 bg-white"
+              >
+                <ChevronRight size={16} />
+              </button>
+              <button
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(totalPages, p + 1))
+                }
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-slate-200 disabled:opacity-30 bg-white"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { notifyDelete } from "@/lib/toast";
 
@@ -37,6 +38,15 @@ export default function LoginPage() {
       dir="rtl"
     >
       <div className="bg-white rounded-xl shadow-sm p-8 w-full max-w-sm">
+        <div className="w-24 h-24 relative mx-auto mb-4">
+          <Image
+            src="/logo.png"
+            alt="شركة ريحان"
+            fill
+            className="object-contain"
+          />
+        </div>
+
         <h1 className="text-xl font-bold text-slate-800 mb-1 text-center">
           منظومة زيارات المشرفين
         </h1>

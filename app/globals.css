@@ -30,3 +30,31 @@ body {
   border-color: #16a34a;
   box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
 }
+@media print {
+  /* اخفاء كل حاجة غير محتوى التقرير وقت الطباعة */
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  main {
+    padding: 0 !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-header {
+    display: flex !important;
+  }
+}
+
+.print-only {
+  display: none;
+}

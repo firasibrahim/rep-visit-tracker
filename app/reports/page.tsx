@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 export default async function ReportsPage() {
   const user = await getCurrentUser();
-  if (!user || user.role !== "supervisor") {
+  if (!user || (user.role !== "supervisor" && user.role !== "admin")) {
     redirect("/");
   }
 
@@ -19,7 +19,9 @@ export default async function ReportsPage() {
 
   const { data: visits } = await supabase
     .from("visits")
-    .select("rep_id, status, promotion_rating, rep_performance_rating, rep_commitment_rating, payment_commitment_rating")
+    .select(
+      "rep_id, status, promotion_rating, rep_performance_rating, rep_commitment_rating, payment_commitment_rating",
+    )
     .eq("status", "reviewed");
 
   const repsPerformance = (reps ?? []).map((rep) => {
@@ -59,9 +61,13 @@ export default async function ReportsPage() {
     .from("visit_inventory")
     .select("product_id, available_on_shelf, products:product_id (name)");
 
-  const productShortage = new Map<number, { name: string; shortageCount: number; totalCount: number }>();
+  const productShortage = new Map<
+    number,
+    { name: string; shortageCount: number; totalCount: number }
+  >();
   (inventoryData ?? []).forEach((item) => {
-    const productName = (item.products as unknown as { name: string } | null)?.name ?? "—";
+    const productName =
+      (item.products as unknown as { name: string } | null)?.name ?? "—";
     const existing = productShortage.get(item.product_id) ?? {
       name: productName,
       shortageCount: 0,
@@ -74,7 +80,9 @@ export default async function ReportsPage() {
 
   const shortageReport = Array.from(productShortage.values())
     .filter((p) => p.totalCount >= 2) // نتجاهل الأصناف اللي ظهرت مرة واحدة بس (بيانات قليلة جدًا)
-    .sort((a, b) => b.shortageCount / b.totalCount - a.shortageCount / a.totalCount)
+    .sort(
+      (a, b) => b.shortageCount / b.totalCount - a.shortageCount / a.totalCount,
+    )
     .slice(0, 10);
 
   // تقرير عام
@@ -89,8 +97,10 @@ export default async function ReportsPage() {
 
   const overallAvg =
     repsPerformance.length > 0
-      ? repsPerformance.reduce((sum, r) => sum + r.avgScore * r.totalVisits, 0) /
-        repsPerformance.reduce((sum, r) => sum + r.totalVisits, 0) || 0
+      ? repsPerformance.reduce(
+          (sum, r) => sum + r.avgScore * r.totalVisits,
+          0,
+        ) / repsPerformance.reduce((sum, r) => sum + r.totalVisits, 0) || 0
       : 0;
 
   return (

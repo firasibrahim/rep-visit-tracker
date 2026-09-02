@@ -73,6 +73,16 @@ function NewOrEditClientPage() {
   }, [editId]);
 
   const handleSubmit = async () => {
+    if (!name.trim()) {
+      notifyDelete("الرجاء إدخال اسم العميل");
+      return;
+    }
+
+    if (!address.trim()) {
+      notifyDelete("الرجاء إدخال عنوان العميل");
+      return;
+    }
+
     const clientData = {
       name,
       classification,
@@ -125,7 +135,7 @@ function NewOrEditClientPage() {
         </h1>
 
         <div className="bg-white rounded-xl shadow-sm p-5 space-y-4">
-          <Field label="اسم العميل (المحل)">
+          <Field label="اسم العميل (المحل)" required>
             <input
               type="text"
               className="input"
@@ -163,7 +173,7 @@ function NewOrEditClientPage() {
             </Field>
           )}
 
-          <Field label="العنوان (نص وصفي)">
+          <Field label="العنوان (نص وصفي)" required>
             <input
               type="text"
               className="input"
@@ -253,14 +263,16 @@ function Card({
 function Field({
   label,
   children,
+  required,
 }: {
   label: string;
   children: React.ReactNode;
+  required?: boolean;
 }) {
   return (
     <div>
       <label className="block text-sm font-medium text-slate-600 mb-1">
-        {label}
+        {label} {required && <span className="text-red-500">*</span>}
       </label>
       {children}
     </div>

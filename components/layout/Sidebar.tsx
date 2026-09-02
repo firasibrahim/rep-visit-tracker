@@ -19,15 +19,22 @@ import {
 import { useState } from "react";
 import Image from "next/image";
 
+type UserRole = "supervisor" | "rep" | "admin";
+
 type MenuItem = {
   label: string;
   href: string;
   icon: React.ElementType;
-  roles: ("supervisor" | "rep")[];
+  roles: UserRole[];
 };
 
 const menuItems: MenuItem[] = [
-  { label: "الرئيسية", href: "/", icon: Home, roles: ["supervisor", "rep"] },
+  {
+    label: "الرئيسية",
+    href: "/",
+    icon: Home,
+    roles: ["supervisor", "rep", "admin"],
+  },
   {
     label: "تسجيل زيارة",
     href: "/visits/new",
@@ -38,16 +45,31 @@ const menuItems: MenuItem[] = [
     label: "قائمة الزيارات",
     href: "/visits",
     icon: ClipboardList,
-    roles: ["supervisor", "rep"],
+    roles: ["supervisor", "rep", "admin"],
   },
-  { label: "العملاء", href: "/clients", icon: Store, roles: ["supervisor"] },
-  { label: "المندوبين", href: "/reps", icon: Users, roles: ["supervisor"] },
-  { label: "الأصناف", href: "/products", icon: Package, roles: ["supervisor"] },
+  {
+    label: "العملاء",
+    href: "/clients",
+    icon: Store,
+    roles: ["supervisor", "admin"],
+  },
+  {
+    label: "المندوبين",
+    href: "/reps",
+    icon: Users,
+    roles: ["supervisor", "admin"],
+  },
+  {
+    label: "الأصناف",
+    href: "/products",
+    icon: Package,
+    roles: ["supervisor", "admin"],
+  },
   {
     label: "التقارير",
     href: "/reports",
     icon: BarChart3,
-    roles: ["supervisor"],
+    roles: ["supervisor", "admin"],
   },
 ];
 
@@ -55,7 +77,7 @@ export default function Sidebar({
   userRole,
   userName,
 }: {
-  userRole: "supervisor" | "rep";
+  userRole: UserRole;
   userName: string;
 }) {
   const pathname = usePathname();

@@ -7,11 +7,13 @@ import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { notifySuccess, notifyUpdate, notifyDelete } from "@/lib/toast";
 
+type UserRole = "supervisor" | "rep" | "admin";
+
 type UserRow = {
   user_id: number;
   name: string;
   email: string;
-  role: "supervisor" | "rep";
+  role: UserRole;
   is_active: boolean;
   linked_rep_id: number | null;
 };
@@ -19,6 +21,7 @@ type UserRow = {
 const roleLabels: Record<string, string> = {
   supervisor: "مشرف",
   rep: "مندوب",
+  admin: "مدير",
 };
 
 export default function UsersManager({
@@ -36,7 +39,7 @@ export default function UsersManager({
   const [formEmail, setFormEmail] = useState("");
   const [formPassword, setFormPassword] = useState("");
   const [formPhone, setFormPhone] = useState("");
-  const [formRole, setFormRole] = useState<"supervisor" | "rep">("rep");
+  const [formRole, setFormRole] = useState<UserRole>("rep");
 
   const refreshUsers = async () => {
     const { data } = await supabase
@@ -221,12 +224,11 @@ export default function UsersManager({
             <select
               className="input"
               value={formRole}
-              onChange={(e) =>
-                setFormRole(e.target.value as "supervisor" | "rep")
-              }
+              onChange={(e) => setFormRole(e.target.value as UserRole)}
             >
               <option value="rep">مندوب</option>
               <option value="supervisor">مشرف</option>
+              <option value="admin">مدير</option>
             </select>
           </div>
 

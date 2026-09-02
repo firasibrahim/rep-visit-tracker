@@ -66,6 +66,11 @@ export default function ProductsManager({
   };
 
   const handleSave = async () => {
+    if (!formSku.trim() || !formName.trim() || !formCategory.trim()) {
+      notifyDelete("الرجاء تعبئة كل الحقول");
+      return;
+    }
+
     if (editingProduct) {
       const { error } = await supabase
         .from("products")
@@ -73,7 +78,6 @@ export default function ProductsManager({
         .eq("product_id", editingProduct.product_id);
 
       if (error) {
-        console.log("خطأ التعديل:", error); // ← أضف هذا السطر
         notifyDelete("حدث خطأ أثناء التعديل");
         return;
       }
@@ -84,7 +88,6 @@ export default function ProductsManager({
         .insert({ sku: formSku, name: formName, category: formCategory });
 
       if (error) {
-        console.log("خطأ الإضافة:", error); // ← أضف هذا السطر
         notifyDelete("حدث خطأ أثناء الإضافة");
         return;
       }

@@ -4,7 +4,10 @@ import { getCurrentUser } from "@/lib/auth";
 
 export async function POST(request: Request) {
   const currentUser = await getCurrentUser();
-  if (!currentUser || currentUser.role !== "supervisor") {
+  if (
+    !currentUser ||
+    (currentUser.role !== "supervisor" && currentUser.role !== "admin")
+  ) {
     return NextResponse.json(
       { error: "غير مصرح", debug: "فشل في التحقق من المستخدم الحالي" },
       { status: 403 },

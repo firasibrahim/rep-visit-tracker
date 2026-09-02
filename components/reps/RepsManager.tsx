@@ -5,7 +5,7 @@ import { Pencil, Pause, Play, Search } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
-import { notifySuccess, notifyUpdate } from "@/lib/toast";
+import { notifySuccess, notifyUpdate, notifyDelete } from "@/lib/toast";
 
 type Rep = {
   rep_id: number;
@@ -41,6 +41,11 @@ export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
 
   const handleSave = async () => {
     if (!editingRep) return;
+
+    if (!formName.trim()) {
+      notifyDelete("الرجاء إدخال اسم المندوب");
+      return;
+    }
 
     const { error } = await supabase
       .from("reps")

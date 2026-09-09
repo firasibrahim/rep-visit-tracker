@@ -5,9 +5,11 @@ import {
   Users,
   AlertCircle,
   TrendingUp,
+  Star,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCurrentUser } from "@/lib/auth";
+import DashboardCharts from "@/components/dashboard/DashboardCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,7 @@ export default async function DashboardPage() {
 
   const { data: clients } = await supabase
     .from("clients")
-    .select("total_score, outstanding_balance")
+    .select("client_id, name, total_score, outstanding_balance")
     .eq("is_active", true);
 
   const { data: recentVisits } = await supabase
@@ -34,6 +36,23 @@ export default async function DashboardPage() {
     .order("visit_date", { ascending: false })
     .limit(5);
 
+  // كل الزيارات (لحساب الرسوم البيانية والقوائم)
+  const { data: allVisits } = await supabase.from("visits").select(
+    `
+      visit_id,
+      visit_date,
+      status,
+      client_id,
+      rep_id,
+      promotion_rating,
+      rep_performance_rating,
+      rep_commitment_rating,
+      payment_commitment_rating,
+      clients:client_id (name),
+      reps:rep_id (name)
+    `,
+  );
+
   const { count: repsCount } = await supabase
     .from("reps")
     .select("*", { count: "exact", head: true })
@@ -49,23 +68,101 @@ export default async function DashboardPage() {
     .eq("status", "pending_review");
 
   const clientsList = clients ?? [];
+  const visitsList = allVisits ?? [];
+
   const avgClientScore =
     clientsList.length > 0
       ? clientsList.reduce((sum, c) => sum + (c.total_score ?? 0), 0) /
         clientsList.length
       : 0;
+
+  // ===== قائمة: أكثر العملاء زيارة =====
+  const visitCountByClient = new Map<number, { name: string; count: number }>();
+  visitsList.forEach((v) => {
+    const clientName =
+      (v.clients as unknown as { name: string } | null)?.name ?? "—";
+    const existing = visitCountByClient.get(v.client_id) ?? {
+      name: clientName,
+      count: 0,
+    };
+    existing.count += 1;
+    visitCountByClient.set(v.client_id, existing);
+  });
+  const topClientsByVisits = Array.from(visitCountByClient.values())
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  // ===== قائمة: أعلى المندوبين تقييمًا =====
+  const repStats = new Map<
+    number,
+    { name: string; totalScore: number; count: number }
+  >();
+  visitsList
+    .filter((v) => v.status === "reviewed")
+    .forEach((v) => {
+      const repName =
+        (v.reps as unknown as { name: string } | null)?.name ?? "—";
+      const visitAvg =
+        ((v.promotion_rating ?? 0) +
+          (v.rep_performance_rating ?? 0) +
+          (v.rep_commitment_rating ?? 0) +
+          (v.payment_commitment_rating ?? 0)) /
+        4;
+      const existing = repStats.get(v.rep_id) ?? {
+        name: repName,
+        totalScore: 0,
+        count: 0,
+      };
+      existing.totalScore += visitAvg;
+      existing.count += 1;
+      repStats.set(v.rep_id, existing);
+    });
+  const topRatedReps = Array.from(repStats.values())
+    .map((r) => ({ name: r.name, avgScore: r.totalScore / r.count }))
+    .sort((a, b) => b.avgScore - a.avgScore)
+    .slice(0, 5);
+
+  // ===== قائمة: العملاء المستحقات =====
+  const overdueClients = clientsList
+    .filter((c) => c.outstanding_balance > 0)
+    .sort((a, b) => b.outstanding_balance - a.outstanding_balance)
+    .slice(0, 5);
+
+  // ===== بيانات الرسم الخطي: الزيارات آخر 7 أيام =====
+  const last7Days: { label: string; count: number }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split("T")[0];
+    const label = date.toLocaleDateString("ar", { weekday: "short" });
+    const count = visitsList.filter((v) => v.visit_date === dateStr).length;
+    last7Days.push({ label, count });
+  }
+
+  // ===== بيانات الدائرة النسبية: حالة الزيارات =====
+  const reviewedCount = visitsList.filter(
+    (v) => v.status === "reviewed",
+  ).length;
+  const pendingCountForChart = visitsList.filter(
+    (v) => v.status === "pending_review",
+  ).length;
+  const statusDistribution = [
+    { name: "تمت المراجعة", value: reviewedCount, color: "#10b981" },
+    { name: "بانتظار المراجعة", value: pendingCountForChart, color: "#f59e0b" },
+  ];
+
   const totalOutstanding = clientsList.reduce(
     (sum, c) => sum + (c.outstanding_balance ?? 0),
     0,
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6" dir="rtl">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50 p-4 md:p-6" dir="rtl">
+      <div className="max-w-6xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">الرئيسية</h1>
           <p className="text-sm text-slate-400 mt-1">
-            نظرة عامة على أداء اليوم
+            نظرة عامة على أداء المنظومة
           </p>
         </div>
 
@@ -77,27 +174,31 @@ export default async function DashboardPage() {
             icon={Store}
             label="عدد العملاء"
             value={clientsList.length}
-            color="emerald"
+            bg="bg-emerald-100"
+            iconColor="text-emerald-600"
           />
           <StatCard
             icon={ClipboardList}
             label="إجمالي الزيارات"
             value={totalVisitsCount ?? 0}
-            color="blue"
+            bg="bg-blue-100"
+            iconColor="text-blue-600"
           />
           {!isRep && (
             <StatCard
               icon={Users}
               label="عدد المندوبين"
               value={repsCount ?? 0}
-              color="amber"
+              bg="bg-purple-100"
+              iconColor="text-purple-600"
             />
           )}
           <StatCard
-            icon={TrendingUp}
-            label="متوسط تقييم العملاء"
+            icon={Star}
+            label="متوسط التقييم"
             value={`${avgClientScore.toFixed(1)} / 10`}
-            color="emerald"
+            bg="bg-amber-100"
+            iconColor="text-amber-600"
           />
         </div>
 
@@ -120,16 +221,43 @@ export default async function DashboardPage() {
           </div>
         )}
 
-        {/* الرصيد المستحق الإجمالي */}
-        <div className="bg-white rounded-xl shadow-sm p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-slate-500">
-              إجمالي الأرصدة المستحقة على جميع العملاء
-            </span>
-            <span className="text-xl font-bold text-red-500">
-              {totalOutstanding} د.ل
-            </span>
-          </div>
+        {/* الرسوم البيانية */}
+        <DashboardCharts
+          visitsTrend={last7Days}
+          statusDistribution={statusDistribution}
+        />
+
+        {/* القوائم الجانبية الثلاثة */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <SideListCard
+            title="أكثر العملاء زيارة"
+            items={topClientsByVisits.map((c) => ({
+              label: c.name,
+              value: `${c.count} زيارة`,
+            }))}
+            viewAllHref="/clients"
+            viewAllLabel="عرض جميع العملاء"
+          />
+          <SideListCard
+            title="أعلى المندوبين تقييمًا"
+            items={topRatedReps.map((r) => ({
+              label: r.name,
+              value: `${r.avgScore.toFixed(1)}`,
+              valueColor: "text-emerald-600",
+            }))}
+            viewAllHref={isRep ? undefined : "/reports"}
+            viewAllLabel="عرض جميع المندوبين"
+          />
+          <SideListCard
+            title="العملاء لديهم مستحقات"
+            items={overdueClients.map((c) => ({
+              label: c.name,
+              value: `${c.outstanding_balance} د.ل`,
+              valueColor: "text-red-500",
+            }))}
+            viewAllHref="/clients"
+            viewAllLabel="عرض جميع المستحقات"
+          />
         </div>
 
         {/* آخر الزيارات */}
@@ -197,28 +325,70 @@ function StatCard({
   icon: Icon,
   label,
   value,
-  color,
+  bg,
+  iconColor,
 }: {
   icon: React.ElementType;
   label: string;
   value: string | number;
-  color: "emerald" | "blue" | "amber";
+  bg: string;
+  iconColor: string;
 }) {
-  const colors = {
-    emerald: "bg-emerald-100 text-emerald-700",
-    blue: "bg-blue-100 text-blue-700",
-    amber: "bg-amber-100 text-amber-700",
-  };
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
+      <div
+        className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${bg}`}
+      >
+        <Icon size={20} className={iconColor} />
+      </div>
+      <div>
+        <div className="text-xl font-bold text-slate-800">{value}</div>
+        <div className="text-xs text-slate-400 mt-0.5">{label}</div>
+      </div>
+    </div>
+  );
+}
 
+function SideListCard({
+  title,
+  items,
+  viewAllHref,
+  viewAllLabel,
+}: {
+  title: string;
+  items: { label: string; value: string; valueColor?: string }[];
+  viewAllHref?: string;
+  viewAllLabel: string;
+}) {
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
-      <div
-        className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 ${colors[color]}`}
-      >
-        <Icon size={18} />
+      <h3 className="font-bold text-slate-700 text-sm mb-3">{title}</h3>
+      <div className="space-y-2.5">
+        {items.length === 0 ? (
+          <p className="text-xs text-slate-400 text-center py-4">
+            لا توجد بيانات بعد
+          </p>
+        ) : (
+          items.map((item, i) => (
+            <div key={i} className="flex items-center justify-between text-sm">
+              <span className="text-slate-600 truncate">{item.label}</span>
+              <span
+                className={`font-bold flex-shrink-0 ${item.valueColor ?? "text-slate-700"}`}
+              >
+                {item.value}
+              </span>
+            </div>
+          ))
+        )}
       </div>
-      <div className="text-xl font-bold text-slate-800">{value}</div>
-      <div className="text-xs text-slate-400 mt-1">{label}</div>
+      {viewAllHref && (
+        <Link
+          href={viewAllHref}
+          className="block text-center mt-4 py-2 text-xs font-bold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50"
+        >
+          {viewAllLabel}
+        </Link>
+      )}
     </div>
   );
 }

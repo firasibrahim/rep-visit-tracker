@@ -39,7 +39,7 @@ const menuItems: MenuItem[] = [
     label: "تسجيل زيارة",
     href: "/visits/new",
     icon: ClipboardEdit,
-    roles: ["rep"],
+    roles: ["rep", "supervisor", "admin"],
   },
   {
     label: "قائمة الزيارات",
@@ -51,7 +51,7 @@ const menuItems: MenuItem[] = [
     label: "العملاء",
     href: "/clients",
     icon: Store,
-    roles: ["supervisor", "admin"],
+    roles: ["supervisor", "rep", "admin"],
   },
   {
     label: "المندوبين",

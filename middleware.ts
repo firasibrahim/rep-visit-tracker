@@ -2,7 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // الصفحات المسموحة للمندوب فقط
-const repAllowedPaths = ["/", "/visits/new", "/visits"];
+const repAllowedPaths = [
+  "/",
+  "/visits/new",
+  "/visits",
+  "/clients",
+  "/clients/new",
+];
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });

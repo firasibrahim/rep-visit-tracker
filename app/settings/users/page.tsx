@@ -8,13 +8,16 @@ export const dynamic = "force-dynamic";
 export default async function UsersPage() {
   const currentUser = await getCurrentUser();
 
-  if (!currentUser || currentUser.role !== "supervisor") {
+  if (
+    !currentUser ||
+    (currentUser.role !== "supervisor" && currentUser.role !== "admin")
+  ) {
     redirect("/");
   }
 
   const { data: users } = await supabase
     .from("users")
-    .select("user_id, name, email, role, is_active, linked_rep_id")
+    .select("user_id, name, email, role, is_active, linked_rep_id, auth_id")
     .order("name");
 
   return <UsersManager initialUsers={users ?? []} />;

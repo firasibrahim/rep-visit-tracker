@@ -7,10 +7,14 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { getCurrentUser } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
+  const currentUser = await getCurrentUser();
+  const isRep = currentUser?.role === "rep";
+
   const { data: clients } = await supabase
     .from("clients")
     .select("total_score, outstanding_balance")
@@ -65,10 +69,13 @@ export default async function DashboardPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* بطاقات إحصائية */}
+        <div
+          className={`grid grid-cols-2 ${isRep ? "md:grid-cols-3" : "md:grid-cols-4"} gap-4`}
+        >
           <StatCard
             icon={Store}
-            label="عدد العملاء النشطين"
+            label="عدد العملاء"
             value={clientsList.length}
             color="emerald"
           />
@@ -78,12 +85,14 @@ export default async function DashboardPage() {
             value={totalVisitsCount ?? 0}
             color="blue"
           />
-          <StatCard
-            icon={Users}
-            label="عدد المندوبين"
-            value={repsCount ?? 0}
-            color="amber"
-          />
+          {!isRep && (
+            <StatCard
+              icon={Users}
+              label="عدد المندوبين"
+              value={repsCount ?? 0}
+              color="amber"
+            />
+          )}
           <StatCard
             icon={TrendingUp}
             label="متوسط تقييم العملاء"
@@ -92,6 +101,7 @@ export default async function DashboardPage() {
           />
         </div>
 
+        {/* تنبيه الزيارات المعلّقة */}
         {(pendingCount ?? 0) > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -110,17 +120,19 @@ export default async function DashboardPage() {
           </div>
         )}
 
+        {/* الرصيد المستحق الإجمالي */}
         <div className="bg-white rounded-xl shadow-sm p-5">
           <div className="flex items-center justify-between">
             <span className="text-sm text-slate-500">
               إجمالي الأرصدة المستحقة على جميع العملاء
             </span>
             <span className="text-xl font-bold text-red-500">
-              {totalOutstanding.toFixed(2)} د.ل
+              {totalOutstanding} د.ل
             </span>
           </div>
         </div>
 
+        {/* آخر الزيارات */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b flex items-center justify-between">
             <h2 className="font-bold text-slate-700">آخر الزيارات</h2>

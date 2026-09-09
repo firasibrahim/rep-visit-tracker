@@ -9,18 +9,26 @@ import { notifySuccess, notifyDelete } from "@/lib/toast";
 
 type Product = { product_id: number; name: string; category: string };
 type Client = { client_id: number; name: string };
+type Rep = { rep_id: number; name: string };
 
 export default function NewVisitForm({
   initialClients,
   initialProducts,
   currentRepId,
+  isRep,
+  availableReps,
 }: {
   initialClients: Client[];
   initialProducts: Product[];
-  currentRepId: number;
+  currentRepId: number | null;
+  isRep: boolean;
+  availableReps: Rep[];
 }) {
   const router = useRouter();
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [selectedRepId, setSelectedRepId] = useState<number | null>(
+    currentRepId,
+  );
   const [repNotes, setRepNotes] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -54,25 +62,28 @@ export default function NewVisitForm({
     (i) => i.availableOnShelf || i.availableInWarehouse,
   ).length;
 
-  // التحقق قبل فتح نافذة التأكيد
   const handlePreSubmit = () => {
     if (!selectedClientId) {
       notifyDelete("الرجاء اختيار العميل أولاً");
       return;
     }
+    if (!isRep && !selectedRepId) {
+      notifyDelete("الرجاء اختيار المندوب أولاً");
+      return;
+    }
     setShowConfirm(true);
   };
 
-  // الإرسال الفعلي بعد التأكيد
   const handleConfirmedSubmit = async () => {
     setSubmitting(true);
 
-    // 1. إنشاء الزيارة نفسها
+    const finalRepId = isRep ? currentRepId : selectedRepId;
+
     const { data: visitData, error: visitError } = await supabase
       .from("visits")
       .insert({
         client_id: selectedClientId,
-        rep_id: currentRepId,
+        rep_id: finalRepId,
         rep_notes: repNotes,
         status: "pending_review",
       })
@@ -85,7 +96,6 @@ export default function NewVisitForm({
       return;
     }
 
-    // 2. إضافة الأصناف المُحددة بس (توفيرًا للبيانات، مفيش داعي نضيف صنف مفيش فيه حركة)
     const selectedInventory = inventory
       .filter((i) => i.availableOnShelf || i.availableInWarehouse)
       .map((i) => ({
@@ -123,7 +133,9 @@ export default function NewVisitForm({
         </div>
 
         <Card title="بيانات الزيارة">
-          <div>
+          <div
+            className={`grid ${!isRep ? "grid-cols-1 md:grid-cols-2 gap-4" : ""}`}
+          >
             <Field label="اسم العميل (المحل)">
               <select
                 className="input"
@@ -140,6 +152,25 @@ export default function NewVisitForm({
                 ))}
               </select>
             </Field>
+
+            {!isRep && (
+              <Field label="باسم المندوب">
+                <select
+                  className="input"
+                  value={selectedRepId ?? ""}
+                  onChange={(e) =>
+                    setSelectedRepId(Number(e.target.value) || null)
+                  }
+                >
+                  <option value="">اختر مندوب</option>
+                  {availableReps.map((r) => (
+                    <option key={r.rep_id} value={r.rep_id}>
+                      {r.name}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
           </div>
         </Card>
 
@@ -161,9 +192,6 @@ export default function NewVisitForm({
         </Card>
 
         <div className="flex justify-end gap-3">
-          <button className="px-5 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-100">
-            حفظ كمسودة
-          </button>
           <button
             onClick={handlePreSubmit}
             className="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"

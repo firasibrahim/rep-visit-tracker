@@ -58,8 +58,10 @@ const PAGE_SIZE = 10;
 
 export default function ClientsManager({
   initialClients,
+  userRole,
 }: {
   initialClients: Client[];
+  userRole: "supervisor" | "rep" | "admin";
 }) {
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [searchTerm, setSearchTerm] = useState("");
@@ -68,6 +70,8 @@ export default function ClientsManager({
   const [currentPage, setCurrentPage] = useState(1);
   const [togglingClient, setTogglingClient] = useState<Client | null>(null);
   const [viewingLocation, setViewingLocation] = useState<Client | null>(null);
+
+  const canToggleStatus = userRole === "supervisor" || userRole === "admin";
 
   const refreshClients = async () => {
     const { data } = await supabase.from("clients").select("*").order("name");
@@ -224,18 +228,20 @@ export default function ClientsManager({
                   >
                     <Pencil size={16} />
                   </Link>
-                  <button
-                    onClick={() => setTogglingClient(client)}
-                    className={
-                      client.is_active ? "text-slate-400" : "text-emerald-600"
-                    }
-                  >
-                    {client.is_active ? (
-                      <Pause size={16} />
-                    ) : (
-                      <Play size={16} />
-                    )}
-                  </button>
+                  {canToggleStatus && (
+                    <button
+                      onClick={() => setTogglingClient(client)}
+                      className={
+                        client.is_active ? "text-slate-400" : "text-emerald-600"
+                      }
+                    >
+                      {client.is_active ? (
+                        <Pause size={16} />
+                      ) : (
+                        <Play size={16} />
+                      )}
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -328,20 +334,22 @@ export default function ClientsManager({
                       >
                         <Pencil size={16} />
                       </Link>
-                      <button
-                        onClick={() => setTogglingClient(client)}
-                        className={
-                          client.is_active
-                            ? "text-slate-400 hover:text-amber-500"
-                            : "text-slate-400 hover:text-emerald-600"
-                        }
-                      >
-                        {client.is_active ? (
-                          <Pause size={16} />
-                        ) : (
-                          <Play size={16} />
-                        )}
-                      </button>
+                      {canToggleStatus && (
+                        <button
+                          onClick={() => setTogglingClient(client)}
+                          className={
+                            client.is_active
+                              ? "text-slate-400 hover:text-amber-500"
+                              : "text-slate-400 hover:text-emerald-600"
+                          }
+                        >
+                          {client.is_active ? (
+                            <Pause size={16} />
+                          ) : (
+                            <Play size={16} />
+                          )}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -384,7 +392,7 @@ export default function ClientsManager({
           )}
         </div>
 
-        {/* Pagination على الموبايل (منفصل بما إن الجدول مخفي) */}
+        {/* Pagination على الموبايل */}
         {totalPages > 1 && (
           <div className="md:hidden flex items-center justify-between px-2">
             <span className="text-xs text-slate-400">

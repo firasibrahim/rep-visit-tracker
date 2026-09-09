@@ -1,5 +1,7 @@
 "use client";
 
+// Diese Seite zeigt dem Supervisor die vom Außendienstmitarbeiter
+// eingereichten Besuchsdaten an und ermöglicht die abschließende Bewertung.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -68,6 +70,7 @@ export default function ReviewVisitForm({
 
     notifySuccess("تم اعتماد التقييم بنجاح");
     router.push("/visits");
+    router.refresh();
   };
 
   const isAlreadyReviewed = visit.status === "reviewed";

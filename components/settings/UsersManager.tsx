@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Pause, Play, Search } from "lucide-react";
+import { Plus, Pause, Play, Search, Pencil, KeyRound } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -16,6 +16,7 @@ type UserRow = {
   role: UserRole;
   is_active: boolean;
   linked_rep_id: number | null;
+  auth_id: string;
 };
 
 const roleLabels: Record<string, string> = {
@@ -41,10 +42,21 @@ export default function UsersManager({
   const [formPhone, setFormPhone] = useState("");
   const [formRole, setFormRole] = useState<UserRole>("rep");
 
+  // تعديل الاسم
+  const [editingUser, setEditingUser] = useState<UserRow | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editName, setEditName] = useState("");
+
+  // إعادة تعيين كلمة المرور
+  const [passwordUser, setPasswordUser] = useState<UserRow | null>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [passwordSubmitting, setPasswordSubmitting] = useState(false);
+
   const refreshUsers = async () => {
     const { data } = await supabase
       .from("users")
-      .select("user_id, name, email, role, is_active, linked_rep_id")
+      .select("user_id, name, email, role, is_active, linked_rep_id, auth_id")
       .order("name");
     setUsers(data ?? []);
   };
@@ -84,7 +96,6 @@ export default function UsersManager({
     setSubmitting(false);
 
     if (!res.ok) {
-      console.log("FULL ERROR DETAILS:", result);
       notifyDelete(`${result.debug}: ${result.error}`);
       return;
     }
@@ -111,6 +122,76 @@ export default function UsersManager({
       }
       refreshUsers();
     }
+  };
+
+  const openEditModal = (user: UserRow) => {
+    setEditingUser(user);
+    setEditName(user.name);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editingUser || !editName.trim()) {
+      notifyDelete("الرجاء إدخال الاسم");
+      return;
+    }
+
+    const { error } = await supabase
+      .from("users")
+      .update({ name: editName })
+      .eq("user_id", editingUser.user_id);
+
+    if (error) {
+      notifyDelete("حدث خطأ أثناء التعديل");
+      return;
+    }
+
+    // لو الحساب مرتبط بمندوب، حدّث اسمه في جدول reps كمان
+    if (editingUser.linked_rep_id) {
+      await supabase
+        .from("reps")
+        .update({ name: editName })
+        .eq("rep_id", editingUser.linked_rep_id);
+    }
+
+    notifyUpdate("تم تعديل الاسم بنجاح");
+    setIsEditModalOpen(false);
+    refreshUsers();
+  };
+
+  const openPasswordModal = (user: UserRow) => {
+    setPasswordUser(user);
+    setNewPassword("");
+    setIsPasswordModalOpen(true);
+  };
+
+  const handlePasswordReset = async () => {
+    if (!passwordUser || newPassword.length < 6) {
+      notifyDelete("كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+      return;
+    }
+
+    setPasswordSubmitting(true);
+
+    const res = await fetch("/api/users/update-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        authId: passwordUser.auth_id,
+        newPassword,
+      }),
+    });
+
+    const result = await res.json();
+    setPasswordSubmitting(false);
+
+    if (!res.ok) {
+      notifyDelete(result.error || "حدث خطأ أثناء تغيير كلمة المرور");
+      return;
+    }
+
+    notifySuccess("تم تغيير كلمة المرور بنجاح");
+    setIsPasswordModalOpen(false);
   };
 
   return (
@@ -181,20 +262,37 @@ export default function UsersManager({
                     )}
                   </td>
                   <td className="py-3 px-4">
-                    <button
-                      onClick={() => setTogglingUser(user)}
-                      className={
-                        user.is_active
-                          ? "text-slate-400 hover:text-amber-500"
-                          : "text-slate-400 hover:text-emerald-600"
-                      }
-                    >
-                      {user.is_active ? (
-                        <Pause size={16} />
-                      ) : (
-                        <Play size={16} />
-                      )}
-                    </button>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => openEditModal(user)}
+                        className="text-slate-400 hover:text-emerald-600"
+                        title="تعديل الاسم"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        onClick={() => openPasswordModal(user)}
+                        className="text-slate-400 hover:text-blue-500"
+                        title="إعادة تعيين كلمة المرور"
+                      >
+                        <KeyRound size={16} />
+                      </button>
+                      <button
+                        onClick={() => setTogglingUser(user)}
+                        className={
+                          user.is_active
+                            ? "text-slate-400 hover:text-amber-500"
+                            : "text-slate-400 hover:text-emerald-600"
+                        }
+                        title={user.is_active ? "إيقاف" : "استرجاع"}
+                      >
+                        {user.is_active ? (
+                          <Pause size={16} />
+                        ) : (
+                          <Play size={16} />
+                        )}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -211,6 +309,7 @@ export default function UsersManager({
         </div>
       </div>
 
+      {/* Modal: إضافة مستخدم جديد */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -286,6 +385,65 @@ export default function UsersManager({
             className="w-full mt-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700 disabled:opacity-50"
           >
             {submitting ? "جاري الإنشاء..." : "إنشاء الحساب"}
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal: تعديل الاسم */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="تعديل الاسم"
+      >
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">
+              الاسم الكامل
+            </label>
+            <input
+              className="input"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={handleEditSave}
+            className="w-full mt-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+          >
+            حفظ التعديلات
+          </button>
+        </div>
+      </Modal>
+
+      {/* Modal: إعادة تعيين كلمة المرور */}
+      <Modal
+        isOpen={isPasswordModalOpen}
+        onClose={() => setIsPasswordModalOpen(false)}
+        title="إعادة تعيين كلمة المرور"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-slate-500">
+            تعيين كلمة مرور جديدة لـ{" "}
+            <span className="font-bold">{passwordUser?.name}</span>
+          </p>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">
+              كلمة المرور الجديدة
+            </label>
+            <input
+              type="password"
+              className="input"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="6 أحرف على الأقل"
+            />
+          </div>
+          <button
+            onClick={handlePasswordReset}
+            disabled={passwordSubmitting}
+            className="w-full mt-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:opacity-50"
+          >
+            {passwordSubmitting ? "جاري التحديث..." : "تحديث كلمة المرور"}
           </button>
         </div>
       </Modal>

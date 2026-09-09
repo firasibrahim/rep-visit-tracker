@@ -89,6 +89,8 @@ export default function Sidebar({
     item.roles.includes(userRole),
   );
 
+  const canManageUsers = userRole === "supervisor" || userRole === "admin";
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
@@ -167,13 +169,15 @@ export default function Sidebar({
         </nav>
 
         <div className="p-3 border-t border-slate-100 space-y-1">
-          <Link
-            href="/settings/users"
-            className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-slate-500 hover:bg-slate-50"
-          >
-            <Settings size={18} />
-            <span>المستخدمين</span>
-          </Link>
+          {canManageUsers && (
+            <Link
+              href="/settings/users"
+              className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-slate-500 hover:bg-slate-50"
+            >
+              <Settings size={18} />
+              <span>المستخدمين</span>
+            </Link>
+          )}
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm text-red-500 hover:bg-red-50 w-full"

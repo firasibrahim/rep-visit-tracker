@@ -10,8 +10,9 @@ export default async function NewVisitPage() {
     redirect("/login");
   }
 
-  // المندوب لازم يكون مرتبط بصف حقيقي في جدول reps
-  if (user.role === "rep" && !user.linked_rep_id) {
+  // كل مستخدم (مندوب، مشرف، أو مدير) لازم يكون مرتبط بصف في جدول reps
+  // عشان يقدر يسجّل زيارة باسمه هو مباشرة
+  if (!user.linked_rep_id) {
     redirect("/");
   }
 
@@ -25,24 +26,12 @@ export default async function NewVisitPage() {
     .select("*")
     .eq("is_active", true);
 
-  // المشرف/المدير محتاجين قائمة كل المندوبين عشان يختاروا منها
-  let reps: { rep_id: number; name: string }[] = [];
-  if (user.role !== "rep") {
-    const { data: repsData } = await supabase
-      .from("reps")
-      .select("rep_id, name")
-      .eq("is_active", true)
-      .order("name");
-    reps = repsData ?? [];
-  }
-
   return (
     <NewVisitForm
       initialClients={clients ?? []}
       initialProducts={products ?? []}
       currentRepId={user.linked_rep_id}
-      isRep={user.role === "rep"}
-      availableReps={reps}
+      isSelfVisit={user.role !== "rep"}
     />
   );
 }

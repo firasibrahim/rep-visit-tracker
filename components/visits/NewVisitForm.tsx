@@ -9,26 +9,20 @@ import { notifySuccess, notifyDelete } from "@/lib/toast";
 
 type Product = { product_id: number; name: string; category: string };
 type Client = { client_id: number; name: string };
-type Rep = { rep_id: number; name: string };
 
 export default function NewVisitForm({
   initialClients,
   initialProducts,
   currentRepId,
-  isRep,
-  availableReps,
+  isSelfVisit,
 }: {
   initialClients: Client[];
   initialProducts: Product[];
-  currentRepId: number | null;
-  isRep: boolean;
-  availableReps: Rep[];
+  currentRepId: number;
+  isSelfVisit: boolean;
 }) {
   const router = useRouter();
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
-  const [selectedRepId, setSelectedRepId] = useState<number | null>(
-    currentRepId,
-  );
   const [repNotes, setRepNotes] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -67,23 +61,17 @@ export default function NewVisitForm({
       notifyDelete("الرجاء اختيار العميل أولاً");
       return;
     }
-    if (!isRep && !selectedRepId) {
-      notifyDelete("الرجاء اختيار المندوب أولاً");
-      return;
-    }
     setShowConfirm(true);
   };
 
   const handleConfirmedSubmit = async () => {
     setSubmitting(true);
 
-    const finalRepId = isRep ? currentRepId : selectedRepId;
-
     const { data: visitData, error: visitError } = await supabase
       .from("visits")
       .insert({
         client_id: selectedClientId,
-        rep_id: finalRepId,
+        rep_id: currentRepId,
         rep_notes: repNotes,
         status: "pending_review",
       })
@@ -117,7 +105,11 @@ export default function NewVisitForm({
       }
     }
 
-    notifySuccess("تم إرسال الزيارة بنجاح، بانتظار مراجعة المشرف");
+    notifySuccess(
+      isSelfVisit
+        ? "تم إرسال الزيارة بنجاح"
+        : "تم إرسال الزيارة بنجاح، بانتظار مراجعة المشرف",
+    );
     setSubmitting(false);
     router.push("/visits");
   };
@@ -133,45 +125,22 @@ export default function NewVisitForm({
         </div>
 
         <Card title="بيانات الزيارة">
-          <div
-            className={`grid ${!isRep ? "grid-cols-1 md:grid-cols-2 gap-4" : ""}`}
-          >
-            <Field label="اسم العميل (المحل)">
-              <select
-                className="input"
-                value={selectedClientId ?? ""}
-                onChange={(e) =>
-                  setSelectedClientId(Number(e.target.value) || null)
-                }
-              >
-                <option value="">اختر عميل</option>
-                {initialClients.map((c) => (
-                  <option key={c.client_id} value={c.client_id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            {!isRep && (
-              <Field label="باسم المندوب">
-                <select
-                  className="input"
-                  value={selectedRepId ?? ""}
-                  onChange={(e) =>
-                    setSelectedRepId(Number(e.target.value) || null)
-                  }
-                >
-                  <option value="">اختر مندوب</option>
-                  {availableReps.map((r) => (
-                    <option key={r.rep_id} value={r.rep_id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-          </div>
+          <Field label="اسم العميل (المحل)">
+            <select
+              className="input"
+              value={selectedClientId ?? ""}
+              onChange={(e) =>
+                setSelectedClientId(Number(e.target.value) || null)
+              }
+            >
+              <option value="">اختر عميل</option>
+              {initialClients.map((c) => (
+                <option key={c.client_id} value={c.client_id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </Field>
         </Card>
 
         <Card title="الأصناف المتوفرة بالرف والمخزن">
@@ -196,7 +165,7 @@ export default function NewVisitForm({
             onClick={handlePreSubmit}
             className="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
           >
-            إرسال الزيارة للمشرف
+            {isSelfVisit ? "إرسال الزيارة" : "إرسال الزيارة للمشرف"}
           </button>
         </div>
       </div>

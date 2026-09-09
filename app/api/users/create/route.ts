@@ -36,28 +36,27 @@ export async function POST(request: Request) {
     );
   }
 
-  let linkedRepId: number | null = null;
+  // ننشئ صف في reps لكل الأدوار (مندوب، مشرف، مدير)
+  // عشان أي مستخدم يقدر يسجّل زيارة باسمه هو مباشرة عند الحاجة
+  const { data: repData, error: repError } = await adminClient
+    .from("reps")
+    .insert({ name, phone: phone || null })
+    .select()
+    .single();
 
-  if (role === "rep") {
-    const { data: repData, error: repError } = await adminClient
-      .from("reps")
-      .insert({ name, phone })
-      .select()
-      .single();
-
-    if (repError) {
-      await adminClient.auth.admin.deleteUser(authData.user.id);
-      return NextResponse.json(
-        {
-          error: repError.message,
-          debug: "فشل في إنشاء صف reps",
-          fullError: JSON.stringify(repError),
-        },
-        { status: 400 },
-      );
-    }
-    linkedRepId = repData.rep_id;
+  if (repError) {
+    await adminClient.auth.admin.deleteUser(authData.user.id);
+    return NextResponse.json(
+      {
+        error: repError.message,
+        debug: "فشل في إنشاء صف reps",
+        fullError: JSON.stringify(repError),
+      },
+      { status: 400 },
+    );
   }
+
+  const linkedRepId = repData.rep_id;
 
   const { error: userError } = await adminClient.from("users").insert({
     name,

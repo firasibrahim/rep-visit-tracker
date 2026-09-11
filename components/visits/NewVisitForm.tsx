@@ -276,13 +276,21 @@ export default function NewVisitForm({
                   ? "يجب السماح بالوصول للموقع لتتمكن من تسجيل الزيارة"
                   : "خدمة تحديد الموقع غير مدعومة على هذا الجهاز، لا يمكن تسجيل الزيارة"}
             </p>
+
             {locationStatus === "denied" && (
-              <button
-                onClick={requestLocation}
-                className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm hover:bg-amber-700"
-              >
-                إعادة المحاولة
-              </button>
+              <>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  إذا لم تظهر نافذة الإذن، افتح إعدادات المتصفح (⋮) ← Site
+                  settings ← Location، وتأكد أن الموقع مسموح له بالوصول، ثم أعد
+                  تحميل الصفحة.
+                </p>
+                <button
+                  onClick={requestLocation}
+                  className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm hover:bg-amber-700"
+                >
+                  إعادة المحاولة
+                </button>
+              </>
             )}
           </div>
         )}

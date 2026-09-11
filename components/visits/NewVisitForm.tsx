@@ -36,7 +36,6 @@ export default function NewVisitForm({
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // بيانات موقع المندوب
   const [repLocation, setRepLocation] = useState<{
     lat: number;
     lng: number;
@@ -55,12 +54,13 @@ export default function NewVisitForm({
     })),
   );
 
-  // نطلب موقع المندوب تلقائيًا أول ما الصفحة تفتح
-  useEffect(() => {
+  const requestLocation = () => {
     if (!navigator.geolocation) {
-      const timer = setTimeout(() => setLocationStatus("unavailable"), 0);
-      return () => clearTimeout(timer);
+      setLocationStatus("unavailable");
+      return;
     }
+
+    setLocationStatus("loading");
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -75,6 +75,13 @@ export default function NewVisitForm({
       },
       { enableHighAccuracy: true, timeout: 10000 },
     );
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      requestLocation();
+    }, 0);
+    return () => clearTimeout(timer);
   }, []);
 
   const toggleAvailability = (
@@ -97,7 +104,6 @@ export default function NewVisitForm({
     (i) => i.availableOnShelf || i.availableInWarehouse,
   ).length;
 
-  // حساب المسافة بين المندوب والعميل المختار
   const distanceToClient =
     repLocation && selectedClient?.latitude && selectedClient?.longitude
       ? calculateDistance(
@@ -197,27 +203,11 @@ export default function NewVisitForm({
             </select>
           </Field>
 
-          {/* حالة الموقع */}
           <div className="mt-3">
             {locationStatus === "loading" && (
               <p className="text-xs text-slate-400 flex items-center gap-1.5">
                 <MapPin size={14} className="animate-pulse" />
                 جاري تحديد موقعك...
-              </p>
-            )}
-
-            {locationStatus === "denied" && (
-              <p className="text-xs text-amber-600 flex items-center gap-1.5">
-                <AlertTriangle size={14} />
-                لم يتم السماح بالوصول للموقع — يُفضّل تفعيل خدمة الموقع لتأكيد
-                الزيارة
-              </p>
-            )}
-
-            {locationStatus === "unavailable" && (
-              <p className="text-xs text-slate-400 flex items-center gap-1.5">
-                <AlertTriangle size={14} />
-                خدمة تحديد الموقع غير مدعومة على هذا الجهاز
               </p>
             )}
 
@@ -268,14 +258,34 @@ export default function NewVisitForm({
           />
         </Card>
 
-        <div className="flex justify-end gap-3">
-          <button
-            onClick={handlePreSubmit}
-            className="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
-          >
-            {isSelfVisit ? "إرسال الزيارة" : "إرسال الزيارة للمشرف"}
-          </button>
-        </div>
+        {locationStatus === "success" ? (
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={handlePreSubmit}
+              className="px-5 py-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
+            >
+              {isSelfVisit ? "إرسال الزيارة" : "إرسال الزيارة للمشرف"}
+            </button>
+          </div>
+        ) : (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center space-y-3">
+            <p className="text-sm text-amber-800">
+              {locationStatus === "loading"
+                ? "جاري تحديد موقعك، الرجاء الانتظار..."
+                : locationStatus === "denied"
+                  ? "يجب السماح بالوصول للموقع لتتمكن من تسجيل الزيارة"
+                  : "خدمة تحديد الموقع غير مدعومة على هذا الجهاز، لا يمكن تسجيل الزيارة"}
+            </p>
+            {locationStatus === "denied" && (
+              <button
+                onClick={requestLocation}
+                className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm hover:bg-amber-700"
+              >
+                إعادة المحاولة
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <ConfirmModal

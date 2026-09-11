@@ -19,6 +19,7 @@ export default async function ReviewVisitPage({
       visit_date,
       rep_notes,
       status,
+      distance_from_client,
       clients:client_id (name),
       reps:rep_id (name)
     `,
@@ -48,6 +49,7 @@ export default async function ReviewVisitPage({
         visit_date: visit.visit_date,
         rep_notes: visit.rep_notes,
         status: visit.status,
+        distance_from_client: visit.distance_from_client,
         client_name:
           (visit.clients as unknown as { name: string } | null)?.name ?? "—",
         rep_name:

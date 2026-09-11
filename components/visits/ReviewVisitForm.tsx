@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { notifySuccess, notifyDelete } from "@/lib/toast";
+import { MapPin, CheckCircle2, AlertTriangle } from "lucide-react";
 
 type Visit = {
   visit_id: number;
@@ -14,6 +15,7 @@ type Visit = {
   status: "pending_review" | "reviewed";
   client_name: string;
   rep_name: string;
+  distance_from_client: number | null;
 };
 
 type InventoryItem = {
@@ -21,6 +23,8 @@ type InventoryItem = {
   available_on_shelf: boolean;
   available_in_warehouse: boolean;
 };
+
+const MAX_ACCEPTABLE_DISTANCE = 150; // بالمتر، نفس الحد المستخدم في شاشة التسجيل
 
 export default function ReviewVisitForm({
   visit,
@@ -74,6 +78,9 @@ export default function ReviewVisitForm({
   };
 
   const isAlreadyReviewed = visit.status === "reviewed";
+  const isLocationOk =
+    visit.distance_from_client !== null &&
+    visit.distance_from_client <= MAX_ACCEPTABLE_DISTANCE;
 
   return (
     <div className="min-h-screen bg-slate-50 p-6" dir="rtl">
@@ -96,6 +103,28 @@ export default function ReviewVisitForm({
             <Info label="العميل" value={visit.client_name} />
             <Info label="المندوب" value={visit.rep_name} />
             <Info label="التاريخ" value={visit.visit_date} />
+            <div>
+              <div className="text-slate-400 text-xs mb-1">تأكيد الموقع</div>
+              {visit.distance_from_client !== null ? (
+                <div
+                  className={`flex items-center gap-1.5 font-medium ${
+                    isLocationOk ? "text-emerald-600" : "text-amber-600"
+                  }`}
+                >
+                  {isLocationOk ? (
+                    <CheckCircle2 size={16} />
+                  ) : (
+                    <AlertTriangle size={16} />
+                  )}
+                  <span>{visit.distance_from_client} متر من الموقع</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 text-slate-400">
+                  <MapPin size={16} />
+                  <span>لم يتم تسجيل الموقع</span>
+                </div>
+              )}
+            </div>
           </div>
         </Card>
 

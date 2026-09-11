@@ -1,14 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import InventorySelector from "@/components/visits/InventorySelector";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { notifySuccess, notifyDelete } from "@/lib/toast";
+import { calculateDistance } from "@/lib/distance";
+import { MapPin, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 type Product = { product_id: number; name: string; category: string };
-type Client = { client_id: number; name: string };
+type Client = {
+  client_id: number;
+  name: string;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+const MAX_ACCEPTABLE_DISTANCE = 150; // بالمتر — مرجع بصري بس، مش شرط مانع
 
 export default function NewVisitForm({
   initialClients,
@@ -26,6 +35,16 @@ export default function NewVisitForm({
   const [repNotes, setRepNotes] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // بيانات موقع المندوب
+  const [repLocation, setRepLocation] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [locationStatus, setLocationStatus] = useState<
+    "loading" | "success" | "denied" | "unavailable"
+  >("loading");
+
   const [inventory, setInventory] = useState(
     initialProducts.map((p) => ({
       productId: p.product_id,
@@ -35,6 +54,28 @@ export default function NewVisitForm({
       availableInWarehouse: false,
     })),
   );
+
+  // نطلب موقع المندوب تلقائيًا أول ما الصفحة تفتح
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      const timer = setTimeout(() => setLocationStatus("unavailable"), 0);
+      return () => clearTimeout(timer);
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setRepLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        setLocationStatus("success");
+      },
+      () => {
+        setLocationStatus("denied");
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }, []);
 
   const toggleAvailability = (
     productId: number,
@@ -56,6 +97,17 @@ export default function NewVisitForm({
     (i) => i.availableOnShelf || i.availableInWarehouse,
   ).length;
 
+  // حساب المسافة بين المندوب والعميل المختار
+  const distanceToClient =
+    repLocation && selectedClient?.latitude && selectedClient?.longitude
+      ? calculateDistance(
+          repLocation.lat,
+          repLocation.lng,
+          selectedClient.latitude,
+          selectedClient.longitude,
+        )
+      : null;
+
   const handlePreSubmit = () => {
     if (!selectedClientId) {
       notifyDelete("الرجاء اختيار العميل أولاً");
@@ -74,6 +126,9 @@ export default function NewVisitForm({
         rep_id: currentRepId,
         rep_notes: repNotes,
         status: "pending_review",
+        rep_latitude: repLocation?.lat ?? null,
+        rep_longitude: repLocation?.lng ?? null,
+        distance_from_client: distanceToClient,
       })
       .select()
       .single();
@@ -141,6 +196,59 @@ export default function NewVisitForm({
               ))}
             </select>
           </Field>
+
+          {/* حالة الموقع */}
+          <div className="mt-3">
+            {locationStatus === "loading" && (
+              <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                <MapPin size={14} className="animate-pulse" />
+                جاري تحديد موقعك...
+              </p>
+            )}
+
+            {locationStatus === "denied" && (
+              <p className="text-xs text-amber-600 flex items-center gap-1.5">
+                <AlertTriangle size={14} />
+                لم يتم السماح بالوصول للموقع — يُفضّل تفعيل خدمة الموقع لتأكيد
+                الزيارة
+              </p>
+            )}
+
+            {locationStatus === "unavailable" && (
+              <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                <AlertTriangle size={14} />
+                خدمة تحديد الموقع غير مدعومة على هذا الجهاز
+              </p>
+            )}
+
+            {locationStatus === "success" &&
+              selectedClient &&
+              distanceToClient !== null && (
+                <div
+                  className={`text-xs flex items-center gap-1.5 ${
+                    distanceToClient <= MAX_ACCEPTABLE_DISTANCE
+                      ? "text-emerald-600"
+                      : "text-amber-600"
+                  }`}
+                >
+                  {distanceToClient <= MAX_ACCEPTABLE_DISTANCE ? (
+                    <CheckCircle2 size={14} />
+                  ) : (
+                    <AlertTriangle size={14} />
+                  )}
+                  أنت على بُعد {distanceToClient} متر من موقع العميل المسجّل
+                </div>
+              )}
+
+            {locationStatus === "success" &&
+              selectedClient &&
+              distanceToClient === null && (
+                <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                  <AlertTriangle size={14} />
+                  لا يوجد موقع محفوظ لهذا العميل للمقارنة
+                </p>
+              )}
+          </div>
         </Card>
 
         <Card title="الأصناف المتوفرة بالرف والمخزن">

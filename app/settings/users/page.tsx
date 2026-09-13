@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import UsersManager from "@/components/settings/UsersManager";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -15,10 +15,38 @@ export default async function UsersPage() {
     redirect("/");
   }
 
-  const { data: users } = await supabase
+  const supabase = await createClient();
+
+  let usersQuery = supabase
     .from("users")
-    .select("user_id, name, email, role, is_active, linked_rep_id, auth_id")
+    .select(
+      "user_id, name, email, role, is_active, linked_rep_id, auth_id, branch_id",
+    )
     .order("name");
 
-  return <UsersManager initialUsers={users ?? []} />;
+  if (currentUser.role !== "admin") {
+    usersQuery = usersQuery.eq("branch_id", currentUser.branch_id);
+  }
+
+  const { data: users } = await usersQuery;
+
+  const { data: branches } = await supabase
+    .from("branches")
+    .select("branch_id, name")
+    .eq("is_active", true)
+    .order("name");
+
+  const visibleBranches =
+    currentUser.role === "admin"
+      ? (branches ?? [])
+      : (branches ?? []).filter((b) => b.branch_id === currentUser.branch_id);
+
+  return (
+    <UsersManager
+      initialUsers={users ?? []}
+      branches={visibleBranches}
+      isAdmin={currentUser.role === "admin"}
+      currentBranchId={currentUser.branch_id}
+    />
+  );
 }

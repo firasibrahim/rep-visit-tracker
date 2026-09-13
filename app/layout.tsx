@@ -6,7 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import Header from "@/components/layout/Header";
 import { Toaster } from "react-hot-toast";
 import { getCurrentUser } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({
@@ -32,6 +32,8 @@ export default async function RootLayout({
   }[] = [];
 
   if (user && (user.role === "supervisor" || user.role === "admin")) {
+    const supabase = await createClient();
+
     const { data } = await supabase
       .from("visits")
       .select(

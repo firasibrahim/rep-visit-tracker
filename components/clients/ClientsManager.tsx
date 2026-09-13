@@ -13,7 +13,7 @@ import {
   ChevronLeft,
   MapPin,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import Modal from "@/components/ui/Modal";
 import { notifySuccess, notifyUpdate } from "@/lib/toast";
@@ -39,6 +39,8 @@ type Client = {
   latitude: number | null;
   longitude: number | null;
   address: string | null;
+  branch_id?: number | null;
+  branch_name?: string;
 };
 
 const classificationLabels: Record<string, string> = {
@@ -59,10 +61,16 @@ const PAGE_SIZE = 10;
 export default function ClientsManager({
   initialClients,
   userRole,
+  isAdmin,
+  currentBranchId,
 }: {
   initialClients: Client[];
   userRole: "supervisor" | "rep" | "admin";
+  isAdmin: boolean;
+  currentBranchId: number | null;
 }) {
+  const supabase = createClient();
+
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("total_score");
@@ -74,7 +82,13 @@ export default function ClientsManager({
   const canToggleStatus = userRole === "supervisor" || userRole === "admin";
 
   const refreshClients = async () => {
-    const { data } = await supabase.from("clients").select("*").order("name");
+    let query = supabase.from("clients").select("*").order("name");
+
+    if (!isAdmin && currentBranchId) {
+      query = query.eq("branch_id", currentBranchId);
+    }
+
+    const { data } = await query;
     setClients(data ?? []);
   };
 
@@ -171,7 +185,6 @@ export default function ClientsManager({
           />
         </div>
 
-        {/* عرض Cards على الموبايل */}
         <div className="md:hidden space-y-3">
           {paginatedClients.map((client) => (
             <div
@@ -192,6 +205,12 @@ export default function ClientsManager({
                   {classificationLabels[client.classification]}
                 </span>
               </div>
+
+              {isAdmin && client.branch_name && (
+                <div className="text-xs text-slate-400 mb-2">
+                  الفرع: {client.branch_name}
+                </div>
+              )}
 
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="text-slate-500">التقييم</span>
@@ -254,7 +273,6 @@ export default function ClientsManager({
           )}
         </div>
 
-        {/* عرض Table على الديسكتوب */}
         <div className="hidden md:block bg-white rounded-xl shadow-sm overflow-hidden">
           <table className="w-full text-sm text-right">
             <thead>
@@ -267,6 +285,7 @@ export default function ClientsManager({
                   onClick={toggleSort}
                 />
                 <th className="py-3 px-4 font-medium">التصنيف</th>
+                {isAdmin && <th className="py-3 px-4 font-medium">الفرع</th>}
                 <SortableHeader
                   label="التقييم"
                   sortKey="total_score"
@@ -307,6 +326,11 @@ export default function ClientsManager({
                       {classificationLabels[client.classification]}
                     </span>
                   </td>
+                  {isAdmin && (
+                    <td className="py-3 px-4 text-xs text-slate-500">
+                      {client.branch_name ?? "—"}
+                    </td>
+                  )}
                   <td className="py-3 px-4 font-bold text-emerald-600">
                     {client.total_score} / 10
                   </td>
@@ -357,7 +381,10 @@ export default function ClientsManager({
 
               {paginatedClients.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-slate-400">
+                  <td
+                    colSpan={isAdmin ? 7 : 6}
+                    className="text-center py-12 text-slate-400"
+                  >
                     لا يوجد عملاء مطابقين للبحث
                   </td>
                 </tr>
@@ -392,7 +419,6 @@ export default function ClientsManager({
           )}
         </div>
 
-        {/* Pagination على الموبايل */}
         {totalPages > 1 && (
           <div className="md:hidden flex items-center justify-between px-2">
             <span className="text-xs text-slate-400">

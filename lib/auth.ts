@@ -7,14 +7,11 @@ export async function getCurrentUser() {
     data: { user: authUser },
   } = await supabase.auth.getUser();
 
-  if (!authUser) {
-    console.log("لا يوجد مستخدم مسجل دخول في Supabase Auth");
-    return null;
-  }
+  if (!authUser) return null;
 
-  const { data: userProfile, error } = await supabase
+  const { data: userProfile } = await supabase
     .from("users")
-    .select("user_id, name, email, role, linked_rep_id")
+    .select("user_id, name, email, role, linked_rep_id, branch_id")
     .eq("auth_id", authUser.id)
     .single();
 

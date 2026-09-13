@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/ui/Modal";
 import { notifySuccess, notifyUpdate, notifyDelete } from "@/lib/toast";
 import ConfirmModal from "@/components/ui/ConfirmModal";
@@ -18,9 +18,13 @@ const PAGE_SIZE = 10;
 
 export default function ProductsManager({
   initialProducts,
+  canManage,
 }: {
   initialProducts: Product[];
+  canManage: boolean;
 }) {
+  const supabase = createClient();
+
   const [products, setProducts] = useState<Product[]>(initialProducts);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -119,13 +123,15 @@ export default function ProductsManager({
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-800">إدارة الأصناف</h1>
-          <button
-            onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
-          >
-            <Plus size={16} />
-            إضافة صنف
-          </button>
+          {canManage && (
+            <button
+              onClick={openAddModal}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+            >
+              <Plus size={16} />
+              إضافة صنف
+            </button>
+          )}
         </div>
 
         <div className="relative max-w-sm">
@@ -152,7 +158,7 @@ export default function ProductsManager({
                 <th className="py-3 px-4 font-medium">الكود</th>
                 <th className="py-3 px-4 font-medium">اسم الصنف</th>
                 <th className="py-3 px-4 font-medium">الفئة</th>
-                <th className="py-3 px-4 font-medium"></th>
+                {canManage && <th className="py-3 px-4 font-medium"></th>}
               </tr>
             </thead>
             <tbody>
@@ -168,22 +174,24 @@ export default function ProductsManager({
                   <td className="py-3 px-4 text-slate-500">
                     {product.category}
                   </td>
-                  <td className="py-3 px-4">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => openEditModal(product)}
-                        className="text-slate-400 hover:text-emerald-600"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => setDeletingProduct(product)}
-                        className="text-slate-400 hover:text-red-500"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+                  {canManage && (
+                    <td className="py-3 px-4">
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => openEditModal(product)}
+                          className="text-slate-400 hover:text-emerald-600"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => setDeletingProduct(product)}
+                          className="text-slate-400 hover:text-red-500"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -217,60 +225,64 @@ export default function ProductsManager({
         </div>
       </div>
 
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        title={editingProduct ? "تعديل صنف" : "إضافة صنف جديد"}
-      >
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1">
-              الكود (SKU)
-            </label>
-            <input
-              className="input"
-              value={formSku}
-              onChange={(e) => setFormSku(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1">
-              اسم الصنف
-            </label>
-            <input
-              className="input"
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1">
-              الفئة
-            </label>
-            <input
-              className="input"
-              value={formCategory}
-              onChange={(e) => setFormCategory(e.target.value)}
-            />
-          </div>
-          <button
-            onClick={handleSave}
-            className="w-full mt-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+      {canManage && (
+        <>
+          <Modal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            title={editingProduct ? "تعديل صنف" : "إضافة صنف جديد"}
           >
-            {editingProduct ? "حفظ التعديلات" : "إضافة الصنف"}
-          </button>
-        </div>
-      </Modal>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">
+                  الكود (SKU)
+                </label>
+                <input
+                  className="input"
+                  value={formSku}
+                  onChange={(e) => setFormSku(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">
+                  اسم الصنف
+                </label>
+                <input
+                  className="input"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">
+                  الفئة
+                </label>
+                <input
+                  className="input"
+                  value={formCategory}
+                  onChange={(e) => setFormCategory(e.target.value)}
+                />
+              </div>
+              <button
+                onClick={handleSave}
+                className="w-full mt-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-700"
+              >
+                {editingProduct ? "حفظ التعديلات" : "إضافة الصنف"}
+              </button>
+            </div>
+          </Modal>
 
-      <ConfirmModal
-        isOpen={!!deletingProduct}
-        onClose={() => setDeletingProduct(null)}
-        onConfirm={confirmDelete}
-        title="حذف الصنف"
-        message={`هل أنت متأكد من حذف "${deletingProduct?.name}"؟ لا يمكن التراجع عن هذا الإجراء.`}
-        confirmLabel="حذف نهائيًا"
-        variant="danger"
-      />
+          <ConfirmModal
+            isOpen={!!deletingProduct}
+            onClose={() => setDeletingProduct(null)}
+            onConfirm={confirmDelete}
+            title="حذف الصنف"
+            message={`هل أنت متأكد من حذف "${deletingProduct?.name}"؟ لا يمكن التراجع عن هذا الإجراء.`}
+            confirmLabel="حذف نهائيًا"
+            variant="danger"
+          />
+        </>
+      )}
     </div>
   );
 }

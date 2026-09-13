@@ -7,7 +7,7 @@ import {
   TrendingUp,
   Star,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 import DashboardCharts from "@/components/dashboard/DashboardCharts";
 
@@ -15,14 +15,36 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const currentUser = await getCurrentUser();
-  const isRep = currentUser?.role === "rep";
 
-  const { data: clients } = await supabase
+  if (!currentUser) {
+    return null;
+  }
+
+  const isRep = currentUser.role === "rep";
+  const isAdmin = currentUser.role === "admin";
+  const userBranchId = currentUser.branch_id;
+
+  const supabase = await createClient();
+
+  // ===== عملاء الفرع (أو كل الفروع للمدير) =====
+  let clientsQuery = supabase
     .from("clients")
     .select("client_id, name, total_score, outstanding_balance")
     .eq("is_active", true);
+  if (!isAdmin) clientsQuery = clientsQuery.eq("branch_id", userBranchId);
+  const { data: clients } = await clientsQuery;
 
-  const { data: recentVisits } = await supabase
+  // ===== آخر الزيارات (فلترة عبر rep_id اللي ينتمي لنفس الفرع) =====
+  let repIdsInBranch: number[] | null = null;
+  if (!isAdmin) {
+    const { data: branchReps } = await supabase
+      .from("reps")
+      .select("rep_id")
+      .eq("branch_id", userBranchId);
+    repIdsInBranch = (branchReps ?? []).map((r) => r.rep_id);
+  }
+
+  let recentVisitsQuery = supabase
     .from("visits")
     .select(
       `
@@ -35,9 +57,13 @@ export default async function DashboardPage() {
     )
     .order("visit_date", { ascending: false })
     .limit(5);
+  if (!isAdmin && repIdsInBranch) {
+    recentVisitsQuery = recentVisitsQuery.in("rep_id", repIdsInBranch);
+  }
+  const { data: recentVisits } = await recentVisitsQuery;
 
-  // كل الزيارات (لحساب الرسوم البيانية والقوائم)
-  const { data: allVisits } = await supabase.from("visits").select(
+  // ===== كل الزيارات (لحساب الرسوم البيانية والقوائم) =====
+  let allVisitsQuery = supabase.from("visits").select(
     `
       visit_id,
       visit_date,
@@ -52,20 +78,37 @@ export default async function DashboardPage() {
       reps:rep_id (name)
     `,
   );
+  if (!isAdmin && repIdsInBranch) {
+    allVisitsQuery = allVisitsQuery.in("rep_id", repIdsInBranch);
+  }
+  const { data: allVisits } = await allVisitsQuery;
 
-  const { count: repsCount } = await supabase
+  // ===== عدد المندوبين =====
+  let repsCountQuery = supabase
     .from("reps")
     .select("*", { count: "exact", head: true })
     .eq("is_active", true);
+  if (!isAdmin) repsCountQuery = repsCountQuery.eq("branch_id", userBranchId);
+  const { count: repsCount } = await repsCountQuery;
 
-  const { count: totalVisitsCount } = await supabase
+  // ===== إجمالي الزيارات =====
+  let totalVisitsQuery = supabase
     .from("visits")
     .select("*", { count: "exact", head: true });
+  if (!isAdmin && repIdsInBranch) {
+    totalVisitsQuery = totalVisitsQuery.in("rep_id", repIdsInBranch);
+  }
+  const { count: totalVisitsCount } = await totalVisitsQuery;
 
-  const { count: pendingCount } = await supabase
+  // ===== الزيارات المعلّقة =====
+  let pendingQuery = supabase
     .from("visits")
     .select("*", { count: "exact", head: true })
     .eq("status", "pending_review");
+  if (!isAdmin && repIdsInBranch) {
+    pendingQuery = pendingQuery.in("rep_id", repIdsInBranch);
+  }
+  const { count: pendingCount } = await pendingQuery;
 
   const clientsList = clients ?? [];
   const visitsList = allVisits ?? [];

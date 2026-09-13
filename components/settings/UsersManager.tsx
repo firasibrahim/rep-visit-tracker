@@ -2,12 +2,17 @@
 
 import { useState } from "react";
 import { Plus, Pause, Play, Search, Pencil, KeyRound } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { notifySuccess, notifyUpdate, notifyDelete } from "@/lib/toast";
 
 type UserRole = "supervisor" | "rep" | "admin";
+
+type Branch = {
+  branch_id: number;
+  name: string;
+};
 
 type UserRow = {
   user_id: number;
@@ -17,6 +22,7 @@ type UserRow = {
   is_active: boolean;
   linked_rep_id: number | null;
   auth_id: string;
+  branch_id: number | null;
 };
 
 const roleLabels: Record<string, string> = {
@@ -27,9 +33,17 @@ const roleLabels: Record<string, string> = {
 
 export default function UsersManager({
   initialUsers,
+  branches,
+  isAdmin,
+  currentBranchId,
 }: {
   initialUsers: UserRow[];
+  branches: Branch[];
+  isAdmin: boolean;
+  currentBranchId: number | null;
 }) {
+  const supabase = createClient();
+
   const [users, setUsers] = useState<UserRow[]>(initialUsers);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -41,6 +55,7 @@ export default function UsersManager({
   const [formPassword, setFormPassword] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formRole, setFormRole] = useState<UserRole>("rep");
+  const [formBranchId, setFormBranchId] = useState<number | "">("");
 
   // تعديل الاسم
   const [editingUser, setEditingUser] = useState<UserRow | null>(null);
@@ -53,11 +68,24 @@ export default function UsersManager({
   const [newPassword, setNewPassword] = useState("");
   const [passwordSubmitting, setPasswordSubmitting] = useState(false);
 
+  const branchNameById = (branchId: number | null) => {
+    if (!branchId) return "كل الفروع";
+    return branches.find((b) => b.branch_id === branchId)?.name ?? "—";
+  };
+
   const refreshUsers = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("users")
-      .select("user_id, name, email, role, is_active, linked_rep_id, auth_id")
+      .select(
+        "user_id, name, email, role, is_active, linked_rep_id, auth_id, branch_id",
+      )
       .order("name");
+
+    if (!isAdmin && currentBranchId) {
+      query = query.eq("branch_id", currentBranchId);
+    }
+
+    const { data } = await query;
     setUsers(data ?? []);
   };
 
@@ -69,12 +97,20 @@ export default function UsersManager({
     setFormPassword("");
     setFormPhone("");
     setFormRole("rep");
+    setFormBranchId(
+      isAdmin ? (branches[0]?.branch_id ?? "") : (currentBranchId ?? ""),
+    );
     setIsModalOpen(true);
   };
 
   const handleCreate = async () => {
     if (!formName || !formEmail || !formPassword) {
       notifyDelete("الرجاء تعبئة كل الحقول المطلوبة");
+      return;
+    }
+
+    if (formRole !== "admin" && !formBranchId) {
+      notifyDelete("الرجاء اختيار الفرع");
       return;
     }
 
@@ -89,6 +125,7 @@ export default function UsersManager({
         password: formPassword,
         role: formRole,
         phone: formPhone,
+        branchId: formRole === "admin" ? null : formBranchId,
       }),
     });
 
@@ -146,7 +183,6 @@ export default function UsersManager({
       return;
     }
 
-    // لو الحساب مرتبط بمندوب، حدّث اسمه في جدول reps كمان
     if (editingUser.linked_rep_id) {
       await supabase
         .from("reps")
@@ -196,7 +232,7 @@ export default function UsersManager({
 
   return (
     <div className="min-h-screen bg-slate-50 p-6" dir="rtl">
-      <div className="max-w-4xl mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-slate-800">
             إدارة المستخدمين
@@ -231,6 +267,7 @@ export default function UsersManager({
                 <th className="py-3 px-4 font-medium">الاسم</th>
                 <th className="py-3 px-4 font-medium">البريد الإلكتروني</th>
                 <th className="py-3 px-4 font-medium">الدور</th>
+                <th className="py-3 px-4 font-medium">الفرع</th>
                 <th className="py-3 px-4 font-medium">الحالة</th>
                 <th className="py-3 px-4 font-medium"></th>
               </tr>
@@ -249,6 +286,9 @@ export default function UsersManager({
                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
                       {roleLabels[user.role]}
                     </span>
+                  </td>
+                  <td className="py-3 px-4 text-slate-500 text-xs">
+                    {branchNameById(user.branch_id)}
                   </td>
                   <td className="py-3 px-4">
                     {user.is_active ? (
@@ -299,7 +339,7 @@ export default function UsersManager({
 
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-center py-12 text-slate-400">
+                  <td colSpan={6} className="text-center py-12 text-slate-400">
                     لا يوجد مستخدمين مطابقين للبحث
                   </td>
                 </tr>
@@ -327,9 +367,30 @@ export default function UsersManager({
             >
               <option value="rep">مندوب</option>
               <option value="supervisor">مشرف</option>
-              <option value="admin">مدير</option>
+              {isAdmin && <option value="admin">مدير</option>}
             </select>
           </div>
+
+          {formRole !== "admin" && (
+            <div>
+              <label className="block text-sm font-medium text-slate-600 mb-1">
+                الفرع
+              </label>
+              <select
+                className="input"
+                value={formBranchId}
+                onChange={(e) => setFormBranchId(Number(e.target.value))}
+                disabled={!isAdmin}
+              >
+                <option value="">اختر الفرع</option>
+                {branches.map((b) => (
+                  <option key={b.branch_id} value={b.branch_id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-slate-600 mb-1">

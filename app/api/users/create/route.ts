@@ -14,7 +14,34 @@ export async function POST(request: Request) {
     );
   }
 
-  const { email, password, name, role, phone } = await request.json();
+  const { email, password, name, role, phone, branchId } = await request.json();
+
+  // المشرف ممنوع ينشئ حساب admin، وممنوع يحدد فرع غير فرعه
+  if (currentUser.role === "supervisor") {
+    if (role === "admin") {
+      return NextResponse.json(
+        { error: "غير مصرح بإنشاء حساب مدير", debug: "محاولة تجاوز صلاحيات" },
+        { status: 403 },
+      );
+    }
+    if (branchId !== currentUser.branch_id) {
+      return NextResponse.json(
+        {
+          error: "غير مصرح بإنشاء مستخدم في فرع آخر",
+          debug: "محاولة تجاوز صلاحيات الفرع",
+        },
+        { status: 403 },
+      );
+    }
+  }
+
+  // المدير مايحتاجش فرع محدد (بيشوف كل الفروع)، باقي الأدوار لازم تختار فرع
+  if (role !== "admin" && !branchId) {
+    return NextResponse.json(
+      { error: "الرجاء اختيار الفرع", debug: "فشل التحقق من الفرع" },
+      { status: 400 },
+    );
+  }
 
   const adminClient = createAdminClient();
 
@@ -36,11 +63,13 @@ export async function POST(request: Request) {
     );
   }
 
+  const finalBranchId = role === "admin" ? null : branchId;
+
   // ننشئ صف في reps لكل الأدوار (مندوب، مشرف، مدير)
   // عشان أي مستخدم يقدر يسجّل زيارة باسمه هو مباشرة عند الحاجة
   const { data: repData, error: repError } = await adminClient
     .from("reps")
-    .insert({ name, phone: phone || null })
+    .insert({ name, phone: phone || null, branch_id: finalBranchId })
     .select()
     .single();
 
@@ -64,6 +93,7 @@ export async function POST(request: Request) {
     role,
     auth_id: authData.user.id,
     linked_rep_id: linkedRepId,
+    branch_id: finalBranchId,
     is_active: true,
   });
 

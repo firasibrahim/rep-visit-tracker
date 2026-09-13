@@ -22,6 +22,22 @@ export async function POST(request: Request) {
 
   const adminClient = createAdminClient();
 
+  // المشرف مايقدرش يغيّر كلمة مرور مستخدم في فرع تاني
+  if (currentUser.role === "supervisor") {
+    const { data: targetUser } = await adminClient
+      .from("users")
+      .select("branch_id")
+      .eq("auth_id", authId)
+      .single();
+
+    if (!targetUser || targetUser.branch_id !== currentUser.branch_id) {
+      return NextResponse.json(
+        { error: "غير مصرح بتعديل هذا المستخدم" },
+        { status: 403 },
+      );
+    }
+  }
+
   const { error } = await adminClient.auth.admin.updateUserById(authId, {
     password: newPassword,
   });

@@ -1,10 +1,8 @@
 "use client";
 
-// Diese Seite zeigt dem Supervisor die vom Außendienstmitarbeiter
-// eingereichten Besuchsdaten an und ermöglicht die abschließende Bewertung.
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { notifySuccess, notifyDelete } from "@/lib/toast";
 import { MapPin, CheckCircle2, AlertTriangle } from "lucide-react";
 
@@ -24,7 +22,7 @@ type InventoryItem = {
   available_in_warehouse: boolean;
 };
 
-const MAX_ACCEPTABLE_DISTANCE = 150; // بالمتر، نفس الحد المستخدم في شاشة التسجيل
+const MAX_ACCEPTABLE_DISTANCE = 150;
 
 export default function ReviewVisitForm({
   visit,
@@ -34,6 +32,7 @@ export default function ReviewVisitForm({
   inventory: InventoryItem[];
 }) {
   const router = useRouter();
+  const supabase = createClient();
   const [submitting, setSubmitting] = useState(false);
 
   const [ratings, setRatings] = useState({

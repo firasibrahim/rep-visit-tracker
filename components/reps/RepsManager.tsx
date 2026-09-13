@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Pause, Play, Search } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import Modal from "@/components/ui/Modal";
 import ConfirmModal from "@/components/ui/ConfirmModal";
 import { notifySuccess, notifyUpdate, notifyDelete } from "@/lib/toast";
@@ -12,9 +12,21 @@ type Rep = {
   name: string;
   phone: string | null;
   is_active: boolean;
+  branch_id?: number | null;
+  branch_name?: string;
 };
 
-export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
+export default function RepsManager({
+  initialReps,
+  isAdmin,
+  currentBranchId,
+}: {
+  initialReps: Rep[];
+  isAdmin: boolean;
+  currentBranchId: number | null;
+}) {
+  const supabase = createClient();
+
   const [reps, setReps] = useState<Rep[]>(initialReps);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -26,7 +38,13 @@ export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
   const [formPhone, setFormPhone] = useState("");
 
   const refreshReps = async () => {
-    const { data } = await supabase.from("reps").select("*").order("name");
+    let query = supabase.from("reps").select("*").order("name");
+
+    if (!isAdmin && currentBranchId) {
+      query = query.eq("branch_id", currentBranchId);
+    }
+
+    const { data } = await query;
     setReps(data ?? []);
   };
 
@@ -114,6 +132,7 @@ export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
               <tr className="border-b bg-slate-50 text-slate-500">
                 <th className="py-3 px-4 font-medium">اسم المندوب</th>
                 <th className="py-3 px-4 font-medium">رقم الهاتف</th>
+                {isAdmin && <th className="py-3 px-4 font-medium">الفرع</th>}
                 <th className="py-3 px-4 font-medium">الحالة</th>
                 <th className="py-3 px-4 font-medium"></th>
               </tr>
@@ -130,6 +149,11 @@ export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
                   <td className="py-3 px-4 text-slate-500">
                     {rep.phone ?? "—"}
                   </td>
+                  {isAdmin && (
+                    <td className="py-3 px-4 text-xs text-slate-500">
+                      {rep.branch_name ?? "—"}
+                    </td>
+                  )}
                   <td className="py-3 px-4">
                     {rep.is_active ? (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
@@ -170,7 +194,10 @@ export default function RepsManager({ initialReps }: { initialReps: Rep[] }) {
 
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="text-center py-12 text-slate-400">
+                  <td
+                    colSpan={isAdmin ? 5 : 4}
+                    className="text-center py-12 text-slate-400"
+                  >
                     لا يوجد مندوبين مطابقين للبحث
                   </td>
                 </tr>

@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import VisitsListManager from "@/components/visits/VisitsListManager";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -6,6 +6,8 @@ export const dynamic = "force-dynamic";
 
 export default async function VisitsPage() {
   const user = await getCurrentUser();
+
+  const supabase = await createClient();
 
   let query = supabase
     .from("visits")

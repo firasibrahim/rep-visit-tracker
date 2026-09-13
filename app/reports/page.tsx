@@ -1,4 +1,4 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import ReportsManager from "@/components/reports/ReportsManager";
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -11,18 +11,34 @@ export default async function ReportsPage() {
     redirect("/");
   }
 
-  // تقرير أداء المندوبين
-  const { data: reps } = await supabase
+  const isAdmin = user.role === "admin";
+  const supabase = await createClient();
+
+  // تقرير أداء المندوبين — نجيب بس مندوبين فرع المشرف (أو الكل لو مدير)
+  let repsQuery = supabase
     .from("reps")
     .select("rep_id, name")
     .eq("is_active", true);
 
-  const { data: visits } = await supabase
+  if (!isAdmin) {
+    repsQuery = repsQuery.eq("branch_id", user.branch_id);
+  }
+
+  const { data: reps } = await repsQuery;
+  const repIds = (reps ?? []).map((r) => r.rep_id);
+
+  let visitsQuery = supabase
     .from("visits")
     .select(
       "rep_id, status, promotion_rating, rep_performance_rating, rep_commitment_rating, payment_commitment_rating",
     )
     .eq("status", "reviewed");
+
+  if (!isAdmin) {
+    visitsQuery = visitsQuery.in("rep_id", repIds);
+  }
+
+  const { data: visits } = await visitsQuery;
 
   const repsPerformance = (reps ?? []).map((rep) => {
     const repVisits = (visits ?? []).filter((v) => v.rep_id === rep.rep_id);
@@ -49,17 +65,35 @@ export default async function ReportsPage() {
   });
 
   // تقرير العملاء المتأخرين في السداد
-  const { data: clientsData } = await supabase
+  let clientsQuery = supabase
     .from("clients")
     .select("client_id, name, outstanding_balance, last_payment_date")
     .eq("is_active", true)
     .gt("outstanding_balance", 0)
     .order("outstanding_balance", { ascending: false });
 
+  if (!isAdmin) {
+    clientsQuery = clientsQuery.eq("branch_id", user.branch_id);
+  }
+
+  const { data: clientsData } = await clientsQuery;
+
   // تقرير الأصناف الأكثر نقصًا
-  const { data: inventoryData } = await supabase
+  const inventoryQuery = supabase
     .from("visit_inventory")
-    .select("product_id, available_on_shelf, products:product_id (name)");
+    .select(
+      "product_id, available_on_shelf, products:product_id (name), visits:visit_id (rep_id)",
+    );
+
+  const { data: inventoryDataRaw } = await inventoryQuery;
+
+  const inventoryData = isAdmin
+    ? inventoryDataRaw
+    : (inventoryDataRaw ?? []).filter((item) => {
+        const itemRepId = (item.visits as unknown as { rep_id: number } | null)
+          ?.rep_id;
+        return itemRepId != null && repIds.includes(itemRepId);
+      });
 
   const productShortage = new Map<
     number,
@@ -86,14 +120,22 @@ export default async function ReportsPage() {
     .slice(0, 10);
 
   // تقرير عام
-  const { count: totalVisitsCount } = await supabase
+  let totalVisitsQuery = supabase
     .from("visits")
     .select("*", { count: "exact", head: true });
 
-  const { count: reviewedCount } = await supabase
+  let reviewedQuery = supabase
     .from("visits")
     .select("*", { count: "exact", head: true })
     .eq("status", "reviewed");
+
+  if (!isAdmin) {
+    totalVisitsQuery = totalVisitsQuery.in("rep_id", repIds);
+    reviewedQuery = reviewedQuery.in("rep_id", repIds);
+  }
+
+  const { count: totalVisitsCount } = await totalVisitsQuery;
+  const { count: reviewedCount } = await reviewedQuery;
 
   const overallAvg =
     repsPerformance.length > 0

@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { notifySuccess, notifyUpdate, notifyDelete } from "@/lib/toast";
 
 const LocationPicker = dynamic(
@@ -34,6 +34,7 @@ function NewOrEditClientPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("id");
+  const supabase = createClient();
 
   const [name, setName] = useState("");
   const [classification, setClassification] = useState<"A" | "B" | "C">("B");
@@ -43,6 +44,36 @@ function NewOrEditClientPage() {
   const [outstandingBalance, setOutstandingBalance] = useState(0);
   const [lastPaymentDate, setLastPaymentDate] = useState("");
   const [loading, setLoading] = useState(!!editId);
+  const [currentUserBranchId, setCurrentUserBranchId] = useState<number | null>(
+    null,
+  );
+  const [branchLoaded, setBranchLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      const {
+        data: { user: authUser },
+      } = await supabase.auth.getUser();
+
+      if (!authUser) {
+        setBranchLoaded(true);
+        return;
+      }
+
+      const { data: userProfile, error } = await supabase
+        .from("users")
+        .select("branch_id")
+        .eq("auth_id", authUser.id)
+        .single();
+
+      if (userProfile) {
+        setCurrentUserBranchId(userProfile.branch_id);
+      }
+      setBranchLoaded(true);
+    };
+
+    loadCurrentUser();
+  }, []);
 
   useEffect(() => {
     if (!editId) return;
@@ -83,7 +114,19 @@ function NewOrEditClientPage() {
       return;
     }
 
-    const clientData = {
+    if (!editId && !branchLoaded) {
+      notifyDelete("جاري تحديد الفرع، الرجاء الانتظار لحظة وإعادة المحاولة");
+      return;
+    }
+
+    if (!editId && !currentUserBranchId) {
+      notifyDelete(
+        "تعذر تحديد الفرع الخاص بحسابك، الرجاء تحديث الصفحة والمحاولة مجددًا",
+      );
+      return;
+    }
+
+    const clientData: Record<string, unknown> = {
       name,
       classification,
       sub_classification:
@@ -94,6 +137,10 @@ function NewOrEditClientPage() {
       outstanding_balance: outstandingBalance,
       last_payment_date: lastPaymentDate || null,
     };
+
+    if (!editId && currentUserBranchId) {
+      clientData.branch_id = currentUserBranchId;
+    }
 
     if (editId) {
       const { error } = await supabase
@@ -110,6 +157,11 @@ function NewOrEditClientPage() {
       const { error } = await supabase.from("clients").insert(clientData);
 
       if (error) {
+        console.log("INSERT ERROR:", error);
+        console.log("INSERT ERROR MESSAGE:", error.message);
+        console.log("INSERT ERROR DETAILS:", error.details);
+        console.log("INSERT ERROR HINT:", error.hint);
+
         notifyDelete("حدث خطأ أثناء الإضافة");
         return;
       }

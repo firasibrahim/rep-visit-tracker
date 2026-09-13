@@ -1,6 +1,7 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import ReviewVisitForm from "@/components/visits/ReviewVisitForm";
-import { notFound } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
+import { notFound, redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -11,6 +12,18 @@ export default async function ReviewVisitPage({
 }) {
   const { id } = await params;
 
+  const currentUser = await getCurrentUser();
+
+  if (!currentUser) {
+    redirect("/login");
+  }
+
+  if (currentUser.role !== "supervisor" && currentUser.role !== "admin") {
+    redirect("/");
+  }
+
+  const supabase = await createClient();
+
   const { data: visit } = await supabase
     .from("visits")
     .select(
@@ -20,7 +33,7 @@ export default async function ReviewVisitPage({
       rep_notes,
       status,
       distance_from_client,
-      clients:client_id (name),
+      clients:client_id (name, branch_id),
       reps:rep_id (name)
     `,
     )
@@ -29,6 +42,18 @@ export default async function ReviewVisitPage({
 
   if (!visit) {
     notFound();
+  }
+
+  const visitBranchId = (
+    visit.clients as unknown as { branch_id: number | null } | null
+  )?.branch_id;
+
+  // المشرف يقدر يراجع بس زيارات فرعه، المدير يقدر يراجع أي زيارة
+  if (
+    currentUser.role === "supervisor" &&
+    visitBranchId !== currentUser.branch_id
+  ) {
+    redirect("/");
   }
 
   const { data: inventory } = await supabase
